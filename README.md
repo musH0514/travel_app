@@ -142,16 +142,16 @@ travel_app/
 ## 准备工作
 
 ### 环境与工具
-[x] Node.js 18+ 和 npm（前端 Next.js）
-[x] Python 3.10+ 和 pip（后端 FastAPI）
-[x] PostgreSQL 数据库（本地或云上）
-[ ] Redis（缓存天气/搜索结果）
-[x] Git（已经有了）
+- [x] Node.js 18+ 和 npm（前端 Next.js）
+- [x] Python 3.10+ 和 pip（后端 FastAPI）
+- [x] PostgreSQL 数据库（本地或云上）
+- [x] Redis（缓存天气/搜索结果）
+- [x] Git
 
 ### 需要申请 API Key
-[ ] 高德地图 JS API Key（前端地图展示）
-[ ] DeepSeek API Key（AI 路线生成）
-[ ] 和风天气 Key（天气预报接入）
+- [ ] 高德地图 JS API Key（前端地图展示）
+- [ ] DeepSeek API Key（AI 路线生成）
+- [ ] 和风天气 Key（天气预报接入）
 
 ### 需要了解的资料
 - Next.js 项目结构和 SSR/SSG 的基本用法
