@@ -71,6 +71,19 @@
 | 餐饮 | 大众点评 | Google Places |
 | 住宿 | 携程 | Booking.com |
 
+## 环境变量
+
+| 变量 | 说明 |
+|------|------|
+| `AMAP_KEY` | 高德地图 JS API Key |
+| `GOOGLE_MAPS_KEY` | Google Maps API Key |
+| `DEEPSEEK_API_KEY` | DeepSeek API Key |
+| `SERPAPI_KEY` | SerpAPI Key |
+| `HEFENG_KEY` | 和风天气 Key |
+| `OPENWEATHER_KEY` | OpenWeatherMap Key |
+| `DATABASE_URL` | PostgreSQL 连接串 |
+| `REDIS_URL` | Redis 连接串 |
+
 ## 架构概览
 
 ```
@@ -104,6 +117,49 @@
 │          PostgreSQL + Redis         │
 └────────────────────────────────────┘
 ```
+
+## 项目结构
+
+```
+travel_app/
+├── frontend/              # Next.js 前端
+│   ├── src/
+│   │   ├── components/    # UI 组件
+│   │   ├── pages/         # 页面
+│   │   ├── api/           # API 调用
+│   │   └── utils/         # 工具函数
+│   └── package.json
+├── backend/               # FastAPI 后端
+│   ├── routers/           # 路由
+│   ├── services/          # 业务逻辑
+│   ├── models/            # 数据模型
+│   ├── utils/             # 工具
+│   └── requirements.txt
+├── docs/                  # 文档
+└── README.md
+```
+
+## 准备工作
+
+### 环境与工具
+[x] Node.js 18+ 和 npm（前端 Next.js）
+[x] Python 3.10+ 和 pip（后端 FastAPI）
+[x] PostgreSQL 数据库（本地或云上）
+[ ] Redis（缓存天气/搜索结果）
+[x] Git（已经有了）
+
+### 需要申请 API Key
+[ ] 高德地图 JS API Key（前端地图展示）
+[ ] DeepSeek API Key（AI 路线生成）
+[ ] 和风天气 Key（天气预报接入）
+
+### 需要了解的资料
+- Next.js 项目结构和 SSR/SSG 的基本用法
+- FastAPI 路由、依赖注入和异步处理
+- 高德地图 JS API 的集成方式（地图展示、标记）
+- DeepSeek API 的调用格式和参数
+- 和风天气 API 的接口文档
+- PostgreSQL 建表和基本查询
 
 ## 分阶段开发路线
 
@@ -148,41 +204,3 @@ cd backend
 pip install -r requirements.txt
 uvicorn main:app --reload
 ```
-
-## 环境变量
-
-| 变量 | 说明 |
-|------|------|
-| `AMAP_KEY` | 高德地图 JS API Key |
-| `GOOGLE_MAPS_KEY` | Google Maps API Key |
-| `DEEPSEEK_API_KEY` | DeepSeek API Key |
-| `SERPAPI_KEY` | SerpAPI Key |
-| `HEFENG_KEY` | 和风天气 Key |
-| `OPENWEATHER_KEY` | OpenWeatherMap Key |
-| `DATABASE_URL` | PostgreSQL 连接串 |
-| `REDIS_URL` | Redis 连接串 |
-
-## 项目结构
-
-```
-travel_app/
-├── frontend/              # Next.js 前端
-│   ├── src/
-│   │   ├── components/    # UI 组件
-│   │   ├── pages/         # 页面
-│   │   ├── api/           # API 调用
-│   │   └── utils/         # 工具函数
-│   └── package.json
-├── backend/               # FastAPI 后端
-│   ├── routers/           # 路由
-│   ├── services/          # 业务逻辑
-│   ├── models/            # 数据模型
-│   ├── utils/             # 工具
-│   └── requirements.txt
-├── docs/                  # 文档
-└── README.md
-```
-
-## License
-
-MIT
