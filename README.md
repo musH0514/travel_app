@@ -78,11 +78,15 @@
 | `AMAP_KEY` | 高德地图 JS API Key |
 | `GOOGLE_MAPS_KEY` | Google Maps API Key |
 | `DEEPSEEK_API_KEY` | DeepSeek API Key |
+| `GEMINI_API_KEY` | Google Gemini API Key|
+| `OPENAI_API_KEY` | OpenAI API Key | 
 | `SERPAPI_KEY` | SerpAPI Key |
 | `HEFENG_KEY` | 和风天气 Key |
 | `OPENWEATHER_KEY` | OpenWeatherMap Key |
 | `DATABASE_URL` | PostgreSQL 连接串 |
 | `REDIS_URL` | Redis 连接串 |
+
+* openai, gemini, deepseek的api免费版都有额度限制，基本上只能用最低配的模型。gemini和deepseek的api付费方式都是充值然后按token扣余额，api的费用单独计算，和网页聊天的套餐无关；openai的api套餐和网页聊天的套餐是同一个，额度对应。
 
 ## 架构概览
 
@@ -150,7 +154,7 @@ travel_app/
 
 ### 需要申请 API Key
 - [ ] 高德地图 JS API Key（前端地图展示）
-- [ ] DeepSeek API Key（AI 路线生成）
+- [x] DeepSeek API Key（AI 路线生成）
 - [ ] 和风天气 Key（天气预报接入）
 
 ### 需要了解的资料
