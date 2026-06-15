@@ -24,8 +24,8 @@ class Settings(BaseSettings):
     # === API Keys（请在 .env 中填入你的 Key）===
     AMAP_KEY: str = ""  # 高德地图 API Key
     DEEPSEEK_API_KEY: str = ""  # DeepSeek API Key
-    GEMINI_API_KEY: str = ""  # Google Gemini API Key
-    OPENAI_API_KEY: str = ""  # OpenAI API Key
+    # GEMINI_API_KEY: str = ""  # Google Gemini API Key
+    # OPENAI_API_KEY: str = ""  # OpenAI API Key
     SERPAPI_KEY: str = ""  # SerpAPI Key
     HEFENG_KEY: str = ""  # 和风天气 Key
     OPENWEATHER_KEY: str = ""  # OpenWeatherMap Key

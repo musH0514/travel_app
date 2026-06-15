@@ -126,20 +126,73 @@
 
 ```
 travel_app/
-├── frontend/              # Next.js 前端
+├── backend/                    # FastAPI 后端
+│   ├── config.py               # 配置
+│   ├── database.py             # 数据库连接
+│   ├── main.py                 # 应用入口
+│   ├── requirements.txt        # Python 依赖
+│   ├── models/                 # 数据模型
+│   │   ├── destination.py
+│   │   ├── itinerary.py
+│   │   ├── trip.py
+│   │   └── user.py
+│   ├── routers/                # 路由
+│   │   ├── ai_plan.py
+│   │   ├── auth.py
+│   │   ├── destinations.py
+│   │   ├── trips.py
+│   │   └── weather.py
+│   ├── services/               # 业务逻辑
+│   │   ├── ai_planner.py
+│   │   ├── map_service.py
+│   │   ├── recommendation.py
+│   │   ├── search_service.py
+│   │   └── weather_service.py
+│   └── utils/                  # 工具
+│       ├── cache.py
+│       └── deps.py
+├── docs/                       # 文档
+├── frontend/                   # Next.js 前端
+│   ├── next.config.js
+│   ├── package.json
+│   ├── public/
+│   │   ├── manifest.json
+│   │   └── sw.js
 │   ├── src/
-│   │   ├── components/    # UI 组件
-│   │   ├── pages/         # 页面
-│   │   ├── api/           # API 调用
-│   │   └── utils/         # 工具函数
-│   └── package.json
-├── backend/               # FastAPI 后端
-│   ├── routers/           # 路由
-│   ├── services/          # 业务逻辑
-│   ├── models/            # 数据模型
-│   ├── utils/             # 工具
-│   └── requirements.txt
-├── docs/                  # 文档
+│   │   ├── api/                # 前端 API 封装
+│   │   │   ├── ai.ts
+│   │   │   ├── client.ts
+│   │   │   ├── destinations.ts
+│   │   │   ├── trips.ts
+│   │   │   └── weather.ts
+│   │   ├── components/         # UI 组件
+│   │   │   ├── AccommodationCard.tsx
+│   │   │   ├── AiPlanForm.tsx
+│   │   │   ├── BudgetSummary.tsx
+│   │   │   ├── DestinationCard.tsx
+│   │   │   ├── ItineraryView.tsx
+│   │   │   ├── Layout.tsx
+│   │   │   ├── LuggageSuggest.tsx
+│   │   │   ├── MapView.tsx
+│   │   │   ├── RestaurantCard.tsx
+│   │   │   ├── TransportSelector.tsx
+│   │   │   ├── TripCard.tsx
+│   │   │   └── WeatherCard.tsx
+│   │   ├── pages/              # 页面
+│   │   │   ├── _app.tsx
+│   │   │   ├── _document.tsx
+│   │   │   ├── destinations.tsx
+│   │   │   ├── index.tsx
+│   │   │   ├── profile.tsx
+│   │   │   ├── trip-plan.tsx
+│   │   │   └── weather.tsx
+│   │   ├── styles/
+│   │   │   └── globals.css
+│   │   └── utils/
+│   │       ├── constants.ts
+│   │       └── types.ts
+│   ├── tailwind.config.ts
+│   └── tsconfig.json
 └── README.md
 ```
 
