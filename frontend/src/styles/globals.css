@@ -1,0 +1,188 @@
+/* ========== TripWise 全局样式 ========== */
+
+/* Tailwind 指令 */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ========== 基础重置 ========== */
+*,
+*::before,
+*::after {
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+}
+
+html {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  /* 防止 iOS 横屏字体缩放 */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #F9FAFB;
+  color: #1F2937;
+  /* 防止 iOS 弹性滚动 */
+  overscroll-behavior: none;
+  /* 禁用选择 */
+  -webkit-user-select: none;
+  user-select: none;
+  /* 安全区域 */
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* 允许输入框选择 */
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* ========== 滚动条隐藏 ========== */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ========== 安全区域 ========== */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 20px);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+
+/* 底部导航栏安全区域 */
+.bottom-nav-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ========== 移动端触摸反馈 ========== */
+.touch-feedback {
+  position: relative;
+  overflow: hidden;
+}
+
+.touch-feedback::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: currentColor;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.touch-feedback:active::after {
+  opacity: 0.1;
+}
+
+/* ========== 动画 ========== */
+.page-enter {
+  animation: pageEnter 0.3s ease-out;
+}
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ========== 行截断 ========== */
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ========== 输入框默认样式覆盖 ========== */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0.4;
+  padding: 4px;
+}
+
+/* ========== 底部弹出动画 ========== */
+@keyframes bottomSheetIn {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.bottom-sheet {
+  animation: bottomSheetIn 0.3s ease-out;
+}
+
+/* ========== 骨架屏闪烁 ========== */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* ========== iOS 风格的大标题 ========== */
+.ios-large-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+/* ========== 避免 iOS 缩放 ========== */
+input, select, textarea, button {
+  font-size: 16px; /* iOS 最小字号防止缩放 */
+}
+
+/* ========== 桌面端居中容器 ========== */
+@media (min-width: 640px) {
+  body {
+    background-color: #E5E7EB;
+  }
+}
+
+/* ========== 打印样式 ========== */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}

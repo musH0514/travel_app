@@ -202,9 +202,10 @@ travel_app/
 cd frontend
 npm install
 npm run dev
+# 浏览器打开 http://localhost:3000，按 F12 → 切换到移动端视图体验手机效果
 
 # 后端
 cd backend
-pip install -r requirements.txt
-uvicorn main:app --reload
+& "C:\ProgramData\anaconda3\python.exe" -m pip install -r requirements.txt
+& "C:\ProgramData\anaconda3\python.exe" -m uvicorn main:app --reload
 ```
