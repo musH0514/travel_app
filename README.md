@@ -266,7 +266,7 @@ travel_app/
 # 前端
 cd frontend
 # npm install
-npm run dev  # 浏览器打开 http://localhost:3000，按 F12 → 切换到移动端视图体验手机效果
+npm run dev  # 浏览器打开 http://localhost:3001，按 F12 → 切换到移动端视图体验手机效果
 
 # 后端 (C:\ProgramData\anaconda3\python.exe)
 cd backend

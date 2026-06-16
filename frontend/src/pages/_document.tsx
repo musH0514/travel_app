@@ -17,17 +17,26 @@ export default function Document() {
         {/* iOS 启动画面 */}
         <link rel="apple-touch-startup-image" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 480 800'%3E%3Crect width='480' height='800' fill='%23F0FDFA'/%3E%3Ctext x='240' y='400' font-size='60' text-anchor='middle' fill='%230F766E'%3ETripWise%3C/text%3E%3C/svg%3E" />
 
-        {/* 主题色 */}
+        {/* 通用 Meta */}
+        <meta charSet="utf-8" />
         <meta name="theme-color" content="#0F766E" />
+        <meta name="description" content="AI驱动的智能旅行规划助手，帮你轻松规划完美旅程" />
+
+        {/* PWA / iOS */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="TripWise" />
+        <meta name="msapplication-navbutton-color" content="#0F766E" />
+        <meta name="format-detection" content="telephone=no" />
 
         {/* 预连接 API 域名 */}
         <link rel="preconnect" href={process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'} />
 
-        {/* Service Worker 注册 */}
+        {/* Service Worker 注册（仅生产环境） */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              if ('serviceWorker' in navigator) {
+              if ('serviceWorker' in navigator && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
                 window.addEventListener('load', function() {
                   navigator.serviceWorker.register('/sw.js').then(
                     function(registration) {
@@ -41,15 +50,6 @@ export default function Document() {
               }
             `,
           }}
-        />
-
-        {/* 字体预加载 */}
-        <link
-          rel="preload"
-          href="/fonts/inter-var.woff2"
-          as="font"
-          type="font/woff2"
-          crossOrigin="anonymous"
         />
       </Head>
       <body>

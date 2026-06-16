@@ -7,8 +7,6 @@ import type { Itinerary, ItineraryDay, WeatherForecast } from '@/utils/types';
 interface ItineraryViewProps {
   itinerary: Itinerary;
   weatherForecasts?: WeatherForecast[];
-  onReorder?: (dayIndex: number, fromIndex: number, toIndex: number) => void;
-  onToggleVersion?: () => void;
 }
 
 // 时间段的图标映射
@@ -28,8 +26,6 @@ const timeSlotColors: Record<string, string> = {
 const ItineraryView: React.FC<ItineraryViewProps> = ({
   itinerary,
   weatherForecasts = [],
-  onReorder,
-  onToggleVersion,
 }) => {
   const [expandedDay, setExpandedDay] = useState<number | null>(0);
 
@@ -105,17 +101,20 @@ const ItineraryView: React.FC<ItineraryViewProps> = ({
     return (
       <div
         key={day.dayNumber}
-        className={`rounded-2xl border overflow-hidden transition-all duration-300 ${
+        className={`rounded-2xl border transition-all duration-300 ${
           day.isBadWeather
             ? 'border-red-200 bg-red-50/30'
             : 'border-gray-100 bg-white'
         } ${isExpanded ? 'shadow-medium' : 'shadow-soft'}`}
       >
-        {/* 日期头部 */}
-        <button
-          onClick={() => toggleDay(day.dayNumber)}
-          className="w-full p-4 flex items-center gap-3 active:bg-gray-50/50"
-        >
+        {/* 日期头部 - 展开时固定 */}
+        <div className="sticky top-12 z-10">
+          <button
+            onClick={() => toggleDay(day.dayNumber)}
+            className={`w-full p-4 flex items-center gap-3 active:bg-gray-50/50 ${
+              isExpanded ? 'rounded-t-2xl' : 'rounded-2xl'
+            } ${day.isBadWeather ? 'bg-red-50/30' : 'bg-white'}`}
+          >
           {/* 日期信息 */}
           <div className="flex flex-col items-center min-w-[44px]">
             <span className="text-sm font-bold text-brand-700">Day {day.dayNumber}</span>
@@ -157,6 +156,7 @@ const ItineraryView: React.FC<ItineraryViewProps> = ({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>
+        </div>
 
         {/* 展开的日程详情 */}
         {isExpanded && (
@@ -188,23 +188,6 @@ const ItineraryView: React.FC<ItineraryViewProps> = ({
 
   return (
     <div className="space-y-3">
-      {/* 版本切换栏 */}
-      {onToggleVersion && (
-        <div className="flex items-center justify-between px-1 py-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-700">
-              当前版本：{itinerary.version === 'rainy' ? '🌧 下雨版' : '☀️ 多云版'}
-            </span>
-          </div>
-          <button
-            onClick={onToggleVersion}
-            className="px-4 py-2 bg-gradient-to-r from-brand-500 to-brand-600 text-white text-sm font-medium rounded-xl active:opacity-90 transition-opacity"
-          >
-            切换为{itinerary.version === 'rainy' ? '多云版' : '下雨版'}
-          </button>
-        </div>
-      )}
-
       {/* 每日行程列表 */}
       {itinerary.days.map(renderDay)}
 
