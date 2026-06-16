@@ -1,6 +1,3 @@
-// ========== AI 行程规划表单 ==========
-// 用户输入偏好，AI 生成行程方案
-
 import React, { useState } from 'react';
 import { TRIP_STYLES, BUDGET_LEVELS } from '@/utils/constants';
 import type { TripStyle, BudgetLevel, AiPlanFormData } from '@/utils/types';
@@ -15,29 +12,33 @@ const AiPlanForm: React.FC<AiPlanFormProps> = ({ onSubmit, isLoading }) => {
     destinations: '',
     startDate: '',
     endDate: '',
-    style: '休闲度假',
+    styles: ['休闲度假'],
     budgetLevel: '舒适型',
     specialRequirements: '',
-    weatherPreference: 'outdoor',
   });
   const [errors, setErrors] = useState<Partial<Record<keyof AiPlanFormData, string>>>({});
 
-  // 今天日期，用于设置日期选择器最小值
   const today = new Date().toISOString().split('T')[0];
 
-  // 更新表单字段
   const updateField = <K extends keyof AiPlanFormData>(
     key: K,
     value: AiPlanFormData[K]
   ) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
-    // 清除对应字段的错误
     if (errors[key]) {
       setErrors((prev) => ({ ...prev, [key]: undefined }));
     }
   };
 
-  // 表单验证
+  const handleStyleToggle = (style: TripStyle) => {
+    const currentStyles = formData.styles;
+    if (currentStyles.includes(style)) {
+      updateField('styles', currentStyles.filter((s) => s !== style));
+    } else if (currentStyles.length < 3) {
+      updateField('styles', [...currentStyles, style]);
+    }
+  };
+
   const validate = (): boolean => {
     const newErrors: Partial<Record<keyof AiPlanFormData, string>> = {};
 
@@ -58,7 +59,6 @@ const AiPlanForm: React.FC<AiPlanFormProps> = ({ onSubmit, isLoading }) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // 提交表单
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validate()) {
@@ -66,61 +66,8 @@ const AiPlanForm: React.FC<AiPlanFormProps> = ({ onSubmit, isLoading }) => {
     }
   };
 
-  // 渲染风格选择器
-  const renderStyleSelector = () => (
-    <div className="grid grid-cols-4 gap-2">
-      {TRIP_STYLES.map((style) => (
-        <button
-          key={style}
-          type="button"
-          onClick={() => updateField('style', style as TripStyle)}
-          className={`px-2 py-2.5 text-xs font-medium rounded-xl border transition-all duration-200 ${
-            formData.style === style
-              ? 'bg-brand-500 text-white border-brand-500 shadow-soft'
-              : 'bg-white text-gray-600 border-gray-200 active:bg-gray-50'
-          }`}
-        >
-          {style === '网红打卡' ? '📸' :
-           style === '文艺漫步' ? '🎨' :
-           style === '亲子游玩' ? '👨‍👩‍👧' :
-           style === '深度文化' ? '🏛' :
-           style === '休闲度假' ? '🏖' :
-           style === '美食之旅' ? '🍜' :
-           style === '摄影采风' ? '📷' :
-           style === '冒险探索' ? '🧗' : '🎯'}
-          <span className="block mt-0.5">{style}</span>
-        </button>
-      ))}
-    </div>
-  );
-
-  // 渲染预算选择器
-  const renderBudgetSelector = () => (
-    <div className="flex gap-2">
-      {BUDGET_LEVELS.map((level) => (
-        <button
-          key={level}
-          type="button"
-          onClick={() => updateField('budgetLevel', level as BudgetLevel)}
-          className={`flex-1 px-3 py-2.5 text-xs font-medium rounded-xl border transition-all duration-200 ${
-            formData.budgetLevel === level
-              ? 'bg-brand-500 text-white border-brand-500 shadow-soft'
-              : 'bg-white text-gray-600 border-gray-200 active:bg-gray-50'
-          }`}
-        >
-          {level === '经济型' ? '💰' :
-           level === '舒适型' ? '💵' :
-           level === '轻奢型' ? '💎' :
-           level === '豪华型' ? '👑' : '💰'}
-          <span className="block mt-0.5">{level}</span>
-        </button>
-      ))}
-    </div>
-  );
-
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {/* 目的地输入 */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1.5">
           目的地
@@ -139,7 +86,6 @@ const AiPlanForm: React.FC<AiPlanFormProps> = ({ onSubmit, isLoading }) => {
         )}
       </div>
 
-      {/* 日期选择 */}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -177,54 +123,69 @@ const AiPlanForm: React.FC<AiPlanFormProps> = ({ onSubmit, isLoading }) => {
         </div>
       </div>
 
-      {/* 出行风格 */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          出行风格
+          出行风格 <span className="text-xs text-gray-400 font-normal">（最多选择3个）</span>
         </label>
-        {renderStyleSelector()}
+        <div className="grid grid-cols-4 gap-2">
+          {TRIP_STYLES.map((style) => {
+            const isSelected = formData.styles.includes(style as TripStyle);
+            const isDisabled = !isSelected && formData.styles.length >= 3;
+            return (
+              <button
+                key={style}
+                type="button"
+                onClick={() => handleStyleToggle(style as TripStyle)}
+                disabled={isDisabled}
+                className={`px-2 py-2.5 text-xs font-medium rounded-xl border transition-all duration-200 ${
+                  isSelected
+                    ? 'bg-brand-500 text-white border-brand-500 shadow-soft'
+                    : isDisabled
+                    ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
+                    : 'bg-white text-gray-600 border-gray-200 active:bg-gray-50'
+                }`}
+              >
+                {style === '网红打卡' ? '📸' :
+                 style === '文艺漫步' ? '🎨' :
+                 style === '亲子游玩' ? '👨‍👩‍👧' :
+                 style === '深度文化' ? '🏛' :
+                 style === '休闲度假' ? '🏖' :
+                 style === '美食之旅' ? '🍜' :
+                 style === '摄影采风' ? '📷' :
+                 style === '冒险探索' ? '🧗' : '🎯'}
+                <span className="block mt-0.5">{style}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* 预算等级 */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
           预算等级
         </label>
-        {renderBudgetSelector()}
-      </div>
-
-      {/* 天气偏好 */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          天气偏好
-        </label>
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={() => updateField('weatherPreference', 'indoor')}
-            className={`flex-1 px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
-              formData.weatherPreference === 'indoor'
-                ? 'bg-brand-500 text-white border-brand-500 shadow-soft'
-                : 'bg-white text-gray-600 border-gray-200 active:bg-gray-50'
-            }`}
-          >
-            🏠 室内偏好
-          </button>
-          <button
-            type="button"
-            onClick={() => updateField('weatherPreference', 'outdoor')}
-            className={`flex-1 px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
-              formData.weatherPreference === 'outdoor'
-                ? 'bg-brand-500 text-white border-brand-500 shadow-soft'
-                : 'bg-white text-gray-600 border-gray-200 active:bg-gray-50'
-            }`}
-          >
-            🌲 户外偏好
-          </button>
+        <div className="flex gap-2">
+          {BUDGET_LEVELS.map((level) => (
+            <button
+              key={level}
+              type="button"
+              onClick={() => updateField('budgetLevel', level as BudgetLevel)}
+              className={`flex-1 px-3 py-2.5 text-xs font-medium rounded-xl border transition-all duration-200 ${
+                formData.budgetLevel === level
+                  ? 'bg-brand-500 text-white border-brand-500 shadow-soft'
+                  : 'bg-white text-gray-600 border-gray-200 active:bg-gray-50'
+              }`}
+            >
+              {level === '经济型' ? '💰' :
+               level === '舒适型' ? '💵' :
+               level === '轻奢型' ? '💎' :
+               level === '豪华型' ? '👑' : '💰'}
+              <span className="block mt-0.5">{level}</span>
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* 特殊需求 */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1.5">
           特殊需求（选填）
@@ -238,7 +199,6 @@ const AiPlanForm: React.FC<AiPlanFormProps> = ({ onSubmit, isLoading }) => {
         />
       </div>
 
-      {/* 提交按钮 */}
       <button
         type="submit"
         disabled={isLoading}

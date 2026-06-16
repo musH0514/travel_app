@@ -58,6 +58,7 @@ export interface TripPlan {
   preferences: TripPreferences;
   weatherConcerns: WeatherConcern[];
   version?: 'sunny' | 'rainy'; // 天气版本
+  status: 'ongoing' | 'planned' | 'completed';
   createdAt: string;
   updatedAt: string;
 }
@@ -77,7 +78,7 @@ export interface TripPreferences {
   style: TripStyle;
   budgetLevel: BudgetLevel;
   specialRequirements?: string; // 特殊需求
-  weatherPreference: 'indoor' | 'outdoor';
+  styles?: TripStyle[]; // 多选偏好（最多3个）
 }
 
 // 天气关注点
@@ -190,10 +191,9 @@ export interface AiPlanFormData {
   destinations: string;
   startDate: string;
   endDate: string;
-  style: TripStyle;
+  styles: TripStyle[];
   budgetLevel: BudgetLevel;
   specialRequirements: string;
-  weatherPreference: 'indoor' | 'outdoor';
 }
 
 // AI 生成方案请求
@@ -201,10 +201,9 @@ export interface AiPlanRequest {
   destinations: string[];
   startDate: string;
   endDate: string;
-  style: TripStyle;
+  styles: TripStyle[];
   budgetLevel: BudgetLevel;
   specialRequirements?: string;
-  weatherPreference: 'indoor' | 'outdoor';
 }
 
 // AI 生成方案响应

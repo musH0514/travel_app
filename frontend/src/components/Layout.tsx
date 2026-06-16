@@ -1,16 +1,13 @@
-// ========== TripWise 布局组件 ==========
-// 移动端底部导航栏 + 安全区域适配
-
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { BOTTOM_NAV_ITEMS } from '@/utils/constants';
 
 interface LayoutProps {
   children: React.ReactNode;
-  title?: string; // 页面标题
-  showBack?: boolean; // 是否显示返回按钮
-  onBack?: () => void; // 返回按钮回调
-  rightAction?: React.ReactNode; // 右上角操作按钮
+  title?: string;
+  showBack?: boolean;
+  onBack?: () => void;
+  rightAction?: React.ReactNode;
 }
 
 const Layout: React.FC<LayoutProps> = ({
@@ -21,11 +18,8 @@ const Layout: React.FC<LayoutProps> = ({
   rightAction,
 }) => {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<string>('home');
-  const [showHeader, setShowHeader] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
+  const [activeTab, setActiveTab] = useState<string>('trips');
 
-  // 同步当前路由到活动标签
   useEffect(() => {
     const currentPath = router.pathname;
     const activeItem = BOTTOM_NAV_ITEMS.find((item) => item.path === currentPath);
@@ -34,29 +28,11 @@ const Layout: React.FC<LayoutProps> = ({
     }
   }, [router.pathname]);
 
-  // 监听滚动隐藏/显示头部
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      if (currentScrollY > lastScrollY && currentScrollY > 60) {
-        setShowHeader(false);
-      } else {
-        setShowHeader(true);
-      }
-      setLastScrollY(currentScrollY);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [lastScrollY]);
-
-  // 导航切换
   const handleTabPress = (item: typeof BOTTOM_NAV_ITEMS[number]) => {
     if (item.path === router.pathname) return;
     router.push(item.path);
   };
 
-  // 返回上一页
   const handleBack = () => {
     if (onBack) {
       onBack();
@@ -65,19 +41,16 @@ const Layout: React.FC<LayoutProps> = ({
     }
   };
 
+  const isHome = router.pathname === '/';
+
   return (
     <div className="min-h-screen bg-gray-50 flex justify-center">
-      {/* 桌面端容器 - 最大宽度480px模拟手机 */}
       <div className="w-full max-w-[480px] min-h-screen bg-white relative shadow-xl">
-        {/* 顶部导航栏 */}
         <header
-          className={`fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-50 bg-white/90 backdrop-blur-lg border-b border-gray-100 transition-transform duration-300 ${
-            showHeader ? 'translate-y-0' : '-translate-y-full'
-          }`}
+          className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-50 bg-white border-b border-gray-100"
           style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
         >
           <div className="flex items-center justify-between h-12 px-4">
-            {/* 左侧：返回按钮或标题 */}
             <div className="flex items-center gap-2 min-w-[40px]">
               {showBack ? (
                 <button
@@ -94,19 +67,27 @@ const Layout: React.FC<LayoutProps> = ({
               )}
             </div>
 
-            {/* 中间标题 */}
             {title && (
               <h1 className="text-base font-semibold text-gray-800 truncate">{title}</h1>
             )}
 
-            {/* 右侧操作按钮 */}
             <div className="flex items-center gap-1 min-w-[40px] justify-end">
-              {rightAction || <div className="w-10" />}
+              {isHome ? (
+                <button
+                  onClick={() => router.push('/profile')}
+                  className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-sm overflow-hidden active:scale-95 transition-transform"
+                >
+                  <span className="text-brand-600 font-medium text-xs">U</span>
+                </button>
+              ) : rightAction ? (
+                rightAction
+              ) : (
+                <div className="w-10" />
+              )}
             </div>
           </div>
         </header>
 
-        {/* 主内容区域 - 为固定头部和底部导航留出空间 */}
         <main
           className="pt-12 pb-16 min-h-screen"
           style={{
@@ -116,7 +97,6 @@ const Layout: React.FC<LayoutProps> = ({
           {children}
         </main>
 
-        {/* 底部导航栏 */}
         <nav
           className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-50 bg-white border-t border-gray-100 shadow-bottom-nav"
           style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
@@ -135,19 +115,16 @@ const Layout: React.FC<LayoutProps> = ({
                   }`}
                   style={{ minHeight: '44px', minWidth: '44px' }}
                 >
-                  {/* 图标 */}
                   <span className={`text-xl leading-none transition-transform duration-200 ${
                     isActive ? 'scale-110' : ''
                   }`}>
                     {item.icon}
                   </span>
-                  {/* 标签文字 */}
                   <span className={`text-[10px] font-medium transition-all duration-200 ${
                     isActive ? 'opacity-100' : 'opacity-80'
                   }`}>
                     {item.label}
                   </span>
-                  {/* 活动指示器 */}
                   {isActive && (
                     <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-brand-500 rounded-full" />
                   )}

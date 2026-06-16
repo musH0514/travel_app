@@ -38,10 +38,7 @@ export const DESTINATION_CATEGORIES = [
 
 // 底部导航配置
 export const BOTTOM_NAV_ITEMS = [
-  { key: 'home', label: '首页', icon: '🏠', path: '/' },
-  { key: 'destinations', label: '目的地', icon: '🌍', path: '/destinations' },
-  { key: 'trips', label: '行程', icon: '📋', path: '/trip-plan' },
-  { key: 'weather', label: '天气', icon: '🌤', path: '/weather' },
+  { key: 'trips', label: '行程', icon: '📋', path: '/' },
   { key: 'profile', label: '我的', icon: '👤', path: '/profile' },
 ] as const;
 
@@ -83,8 +80,10 @@ export const STORAGE_KEYS = {
 // 页面路由
 export const ROUTES = {
   HOME: '/',
-  DESTINATIONS: '/destinations',
+  CREATE_TRIP: '/create-trip',
   TRIP_PLAN: '/trip-plan',
-  WEATHER: '/weather',
+  MY_TRACKS: '/my-tracks',
+  HISTORY_TRIPS: '/history-trips',
+  SETTINGS: '/settings',
   PROFILE: '/profile',
 } as const;

@@ -183,11 +183,15 @@ travel_app/
 │   │   ├── pages/              # 页面
 │   │   │   ├── _app.tsx
 │   │   │   ├── _document.tsx
-│   │   │   ├── destinations.tsx
-│   │   │   ├── index.tsx
-│   │   │   ├── profile.tsx
-│   │   │   ├── trip-plan.tsx
-│   │   │   └── weather.tsx
+│   │   │   ├── create-trip.tsx  # 创建新行程
+│   │   │   ├── destinations.tsx # 目的地浏览
+│   │   │   ├── history-trips.tsx# 历史行程
+│   │   │   ├── index.tsx       # 行程主页面（底部导航-行程）
+│   │   │   ├── my-tracks.tsx   # 我的足迹（世界地图）
+│   │   │   ├── profile.tsx     # 个人中心（底部导航-我的）
+│   │   │   ├── settings.tsx    # 设置
+│   │   │   ├── trip-plan.tsx   # 行程详情/AI规划
+│   │   │   └── weather.tsx     # 天气页面
 │   │   ├── styles/
 │   │   │   └── globals.css
 │   │   └── utils/

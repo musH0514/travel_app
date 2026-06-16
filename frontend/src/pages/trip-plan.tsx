@@ -1,6 +1,3 @@
-// ========== 行程页面 ==========
-// 我的行程列表 / 新建行程 / 行程详情
-
 import React, { useState } from 'react';
 import TripCard from '@/components/TripCard';
 import AiPlanForm from '@/components/AiPlanForm';
@@ -14,8 +11,6 @@ import type {
   LuggageSuggestion, Restaurant, Accommodation, AiPlanFormData,
 } from '@/utils/types';
 
-// ========== 模拟数据 ==========
-
 const mockTrips: TripPlan[] = [
   {
     id: '1', userId: 'u1',
@@ -25,8 +20,9 @@ const mockTrips: TripPlan[] = [
     ],
     startDate: '2026-07-15', endDate: '2026-07-20',
     budget: { total: 8000, transport: 2000, accommodation: 3000, food: 1500, tickets: 800, other: 700 },
-    preferences: { style: '深度文化', budgetLevel: '舒适型', weatherPreference: 'outdoor' },
+    preferences: { style: '深度文化', budgetLevel: '舒适型' },
     weatherConcerns: [{ date: '2026-07-17', originalCondition: '小雨', concern: '故宫游览需带伞' }],
+    status: 'ongoing',
     createdAt: '2026-06-10', updatedAt: '2026-06-10',
   },
   {
@@ -36,8 +32,9 @@ const mockTrips: TripPlan[] = [
     ],
     startDate: '2026-08-01', endDate: '2026-08-04',
     budget: { total: 5000, transport: 1000, accommodation: 2000, food: 1200, tickets: 400, other: 400 },
-    preferences: { style: '美食之旅', budgetLevel: '舒适型', weatherPreference: 'indoor' },
+    preferences: { style: '美食之旅', budgetLevel: '舒适型' },
     weatherConcerns: [],
+    status: 'planned',
     createdAt: '2026-06-08', updatedAt: '2026-06-08',
   },
 ];
@@ -98,46 +95,36 @@ const mockAccommodations: Accommodation[] = [
   { id: 'a2', name: '北京四合院民宿', location: { lat: 0, lng: 0 }, price: 488, rating: 4.4, type: '民宿', amenities: ['WiFi', '早餐', '空调'], distanceToAttractions: 1200 },
 ];
 
-// ========== 页面组件 ==========
-
 const TripPlanPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'list' | 'new'>('list');
   const [selectedTrip, setSelectedTrip] = useState<TripPlan | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showItinerary, setShowItinerary] = useState(false);
 
-  // 查看行程详情
   const handleTripPress = (trip: TripPlan) => {
     setSelectedTrip(trip);
     setShowItinerary(true);
   };
 
-  // 删除行程
   const handleDeleteTrip = (trip: TripPlan) => {
-    // TODO: 实际删除逻辑
     console.log('删除行程:', trip.id);
   };
 
-  // AI 生成方案
   const handleAiSubmit = async (data: AiPlanFormData) => {
     setIsGenerating(true);
-    // TODO: 实际 API 调用
     await new Promise((resolve) => setTimeout(resolve, 2000));
     setIsGenerating(false);
     setActiveTab('list');
   };
 
-  // 详情页返回
   const handleBackFromDetail = () => {
     setShowItinerary(false);
     setSelectedTrip(null);
   };
 
-  // ===== 行程详情视图 =====
   if (showItinerary && selectedTrip) {
     return (
       <div className="pb-4">
-        {/* 返回按钮 */}
         <div className="px-4 pt-3 pb-1">
           <button
             onClick={handleBackFromDetail}
@@ -150,7 +137,6 @@ const TripPlanPage: React.FC = () => {
           </button>
         </div>
 
-        {/* 行程标题 */}
         <div className="px-4 py-2">
           <h2 className="text-lg font-bold text-gray-800">
             {selectedTrip.destinations.map((d) => d.name).join(' · ')}
@@ -161,7 +147,6 @@ const TripPlanPage: React.FC = () => {
           </p>
         </div>
 
-        {/* 行程日程 */}
         <div className="px-4 mt-2">
           <h3 className="text-sm font-semibold text-gray-800 mb-3">📋 每日行程</h3>
           <ItineraryView
@@ -171,18 +156,15 @@ const TripPlanPage: React.FC = () => {
           />
         </div>
 
-        {/* 预算概览 */}
         <div className="px-4 mt-5">
           <h3 className="text-sm font-semibold text-gray-800 mb-3">💰 预算概览</h3>
           <BudgetSummary budget={mockBudget} />
         </div>
 
-        {/* 行李建议 */}
         <div className="px-4 mt-5">
           <LuggageSuggest suggestions={mockLuggage} />
         </div>
 
-        {/* 沿途美食推荐 */}
         <div className="px-4 mt-5">
           <h3 className="text-sm font-semibold text-gray-800 mb-3">🍜 沿途美食推荐</h3>
           <div className="space-y-2">
@@ -195,7 +177,6 @@ const TripPlanPage: React.FC = () => {
           </div>
         </div>
 
-        {/* 住宿推荐 */}
         <div className="px-4 mt-5">
           <h3 className="text-sm font-semibold text-gray-800 mb-3">🏨 住宿推荐</h3>
           <div className="space-y-2">
@@ -211,10 +192,8 @@ const TripPlanPage: React.FC = () => {
     );
   }
 
-  // ===== 列表/新建视图 =====
   return (
     <div className="pb-4">
-      {/* Tab 切换 */}
       <div className="px-4 pt-3 pb-3">
         <div className="flex bg-gray-100 rounded-xl p-1">
           <button
@@ -241,7 +220,6 @@ const TripPlanPage: React.FC = () => {
       </div>
 
       {activeTab === 'list' ? (
-        // 我的行程列表
         <div className="px-4 space-y-3">
           {mockTrips.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-gray-400">
@@ -266,7 +244,6 @@ const TripPlanPage: React.FC = () => {
           )}
         </div>
       ) : (
-        // 新建行程 - AI 表单
         <div className="px-4">
           <div className="bg-gradient-to-br from-brand-50 to-blue-50 rounded-2xl p-4 mb-4">
             <h3 className="text-sm font-semibold text-brand-800">🤖 AI 智能规划</h3>
