@@ -71,7 +71,9 @@
 | 餐饮 | 大众点评 | Google Places |
 | 住宿 | 携程 | Booking.com |
 
-## 环境变量
+## 项目结构
+
+### 环境变量
 
 | 变量 | 说明 |
 |------|------|
@@ -88,7 +90,7 @@
 
 * openai, gemini, deepseek的api免费版都有额度限制，基本上只能用最低配的模型。gemini和deepseek的api付费方式都是充值然后按token扣余额，api的费用单独计算，和网页聊天的套餐无关；openai的api套餐和网页聊天的套餐是同一个，额度对应。
 
-## 架构概览
+### 模块架构
 
 ```
 ┌─────────────────────────────────────┐
@@ -122,7 +124,7 @@
 └─────────────────────────────────────┘
 ```
 
-## 项目结构
+### 文件目录结构
 
 ```
 travel_app/
@@ -218,7 +220,7 @@ travel_app/
 - 和风天气 API 的接口文档
 - PostgreSQL 建表和基本查询
 
-## PostgreSQL 数据库内容建议：
+### PostgreSQL 数据库内容建议：
 - users — 用户账户（用户名、邮箱、密码哈希、偏好设置等）
 - destinations — 景点/目的地（名称、位置、分类、评分、价格等级、标签等）
 - trip_plans — 旅行计划（标题、日期、预算、偏好、天气版本关联等）
@@ -259,12 +261,11 @@ travel_app/
 ```bash
 # 前端
 cd frontend
-npm install
-npm run dev
-# 浏览器打开 http://localhost:3000，按 F12 → 切换到移动端视图体验手机效果
+# npm install
+npm run dev  # 浏览器打开 http://localhost:3000，按 F12 → 切换到移动端视图体验手机效果
 
-# 后端
+# 后端 (C:\ProgramData\anaconda3\python.exe)
 cd backend
-& "C:\ProgramData\anaconda3\python.exe" -m pip install -r requirements.txt
-& "C:\ProgramData\anaconda3\python.exe" -m uvicorn main:app --reload
+python -m pip install -r requirements.txt  # already satisfied
+python -m uvicorn main:app --reload
 ```
