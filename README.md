@@ -207,7 +207,7 @@ travel_app/
 ### 环境与工具
 - [x] Node.js 18+ 和 npm（前端 Next.js）
 - [x] Python 3.10+ 和 pip（后端 FastAPI）
-- [x] PostgreSQL 数据库（本地或云上）
+- [x] PostgreSQL 数据库
 - [x] Redis（缓存天气/搜索结果）
 - [x] Git
 
@@ -226,15 +226,41 @@ travel_app/
 
 ### PostgreSQL 数据库内容建议：
 - users — 用户账户（用户名、邮箱、密码哈希、偏好设置等）
-- destinations — 景点/目的地（名称、位置、分类、评分、价格等级、标签等）
-- trip_plans — 旅行计划（标题、日期、预算、偏好、天气版本关联等）
-- itinerary_items — 行程明细（每日活动、时间、地点、交通方式、预估费用、天气版本等）
+
+|user_id|user_name|password|trip_ids|
+|---|---|---|---|
+
+- trip_plans — 行程明细（每日活动、时间、地点、交通方式、预估费用等）
+
+|trip_id|user_id|city_name(s)|start_month|start_day|end_month|end_day|total_days|tag1|tag2|tag3|itinerary_ids|group_size|total_budgets|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+
+- style_tags — 旅行风格标签对应表
+
+|tag_id|tag_name|
+|---|---|
+
+- itinerary_items — 活动
+
+|itinerary_id|destination_id|trip_id|day_num|order_index|start_time|end_time|category|budget|
+|---|---|---|---|---|---|---|---|---|
+
+- destinations — 景点（名称、位置、分类、评分、价格等级、标签等）
+
+|destination_id|destination_name|latitude|longitude|category|budget_per_person|opening_hours|introduction|
+|---|---|---|---|---|---|---|---|
+
+- destination_categories — 景点类型（餐厅/酒店/公园/景点）
+
+|category_id|category_name|
+|---|---|
+
 
 ## 分阶段开发路线
 
 ### Phase 1: MVP 原型（1-2 个月）
 - [ ] 用户系统（注册/偏好收集）
-- [ ] 目的地 CRUD（手动添加 + 基本推荐）
+- [x] 目的地 CRUD（手动添加 + 基本推荐）
 - [ ] 地图展示（高德地图 SDK 集成）
 - [ ] 天气接入 + 展示
 - [ ] 基础 AI 路线生成（DeepSeek API）
@@ -266,7 +292,7 @@ travel_app/
 # 前端
 cd frontend
 # npm install
-npm run dev  # 浏览器打开 http://localhost:3001，按 F12 → 切换到移动端视图体验手机效果
+npm run dev  # 浏览器打开 http://localhost:3000，按 F12 → 切换到移动端视图体验手机效果
 
 # 后端 (C:\ProgramData\anaconda3\python.exe)
 cd backend
