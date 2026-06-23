@@ -18,11 +18,6 @@ class BackupPlanRequest(BaseModel):
     original_plan: dict
 
 
-class CompareRequest(BaseModel):
-    """版本对比请求"""
-    trip_id: str
-
-
 # ==================== 路由 ====================
 
 @router.get("/forecast")
@@ -53,9 +48,3 @@ async def backup_plan(data: BackupPlanRequest):
     )
     return backup
 
-
-@router.post("/compare")
-async def compare_versions(data: CompareRequest):
-    """对比行程的晴天版与下雨版"""
-    comparison = await weather_service.compare_weather_versions(data.trip_id)
-    return comparison

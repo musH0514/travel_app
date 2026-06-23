@@ -321,7 +321,7 @@ class AIPlanner:
         # 构建优化提示
         system_prompt = "你是一个行程优化专家，擅长调整和优化旅行计划。"
         items_summary = [
-            {"day": i.day_number, "activity": i.activity, "type": i.activity_type,
+            {"day": i.day_number, "type": i.activity_type,
              "start": str(i.start_time), "end": str(i.end_time), "cost": i.estimated_cost}
             for i in items
         ]

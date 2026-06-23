@@ -1,4 +1,4 @@
-# TripWise - 智能行程规划平台
+﻿# TripWise - 智能行程规划平台
 
 > 一款根据用户偏好、天气、预算等因素，智能生成个性化出游方案的行程规划平台。
 
@@ -224,35 +224,31 @@ travel_app/
 - 和风天气 API 的接口文档
 - PostgreSQL 建表和基本查询
 
-### PostgreSQL 数据库内容建议：
-- users — 用户账户（用户名、邮箱、密码哈希、偏好设置等）
+### PostgreSQL 数据库结构：
 
-|user_id|user_name|password|trip_ids|
-|---|---|---|---|
+- users — 用户账户
 
-- trip_plans — 行程明细（每日活动、时间、地点、交通方式、预估费用等）
-
-|trip_id|user_id|city_name(s)|start_month|start_day|end_month|end_day|total_days|tag1|tag2|tag3|itinerary_ids|group_size|total_budgets|
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-
-- style_tags — 旅行风格标签对应表
-
-|tag_id|tag_name|
-|---|---|
-
-- itinerary_items — 活动
-
-|itinerary_id|destination_id|trip_id|day_num|order_index|start_time|end_time|category|budget|
+|id|username|email|hashed_password|avatar_url|preferences|is_active|created_at|updated_at|
 |---|---|---|---|---|---|---|---|---|
 
-- destinations — 景点（名称、位置、分类、评分、价格等级、标签等）
+- destinations — 目的地/景点/住宿/餐饮统一表
 
-|destination_id|destination_name|latitude|longitude|category|budget_per_person|opening_hours|introduction|
-|---|---|---|---|---|---|---|---|
+|id|name|name_en|description|location|country|city|address|category|images|rating|budget_per_person|suggested_duration|created_at|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 
-- destination_categories — 景点类型（餐厅/酒店/公园/景点）
+- trip_plans — 行程计划
 
-|category_id|category_name|
+|id|user_id|title|start_date|end_date|destinations|preferences|total_budget|group_size|status|created_at|updated_at|
+|---|---|---|---|---|---|---|---|---|---|---|---|
+
+- itinerary_items — 行程明细（每天的活动）
+
+|id|trip_id|day_number|order_index|start_time|end_time|destination_id|activity_type|transport_mode|transport_detail|notes|estimated_cost|
+|---|---|---|---|---|---|---|---|---|---|---|---|
+
+- style_tags — 旅行风格标签
+
+|id|tag_name|
 |---|---|
 
 

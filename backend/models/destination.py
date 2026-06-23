@@ -3,7 +3,7 @@
 # ============================================================
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Boolean, Float, DateTime, Text, func
+from sqlalchemy import String, Integer, Float, DateTime, Text, func
 from sqlalchemy.dialects.postgresql import UUID, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 from database import Base
@@ -30,11 +30,8 @@ class Destination(Base):
     # 图片列表：JSON 数组
     images: Mapped[list] = mapped_column(JSON, nullable=True, default=list)
     rating: Mapped[float] = mapped_column(Float, default=0.0)
-    # 消费等级：经济 / 舒适 / 轻奢 / 豪华
-    price_level: Mapped[str] = mapped_column(String(20), default="经济")
-    tags: Mapped[list] = mapped_column(JSON, nullable=True, default=list)
+    budget_per_person: Mapped[int] = mapped_column(Integer, nullable=True)  # 人均预算
     suggested_duration: Mapped[float] = mapped_column(Float, default=2.0)  # 建议游览时长（小时）
-    domestic: Mapped[bool] = mapped_column(Boolean, default=True)  # True=国内, False=海外
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     def __repr__(self) -> str:

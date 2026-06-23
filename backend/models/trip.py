@@ -3,7 +3,7 @@
 # ============================================================
 import uuid
 from datetime import datetime, date
-from sqlalchemy import String, Boolean, DateTime, Date, Text, ForeignKey, func
+from sqlalchemy import String, Integer, DateTime, Date, ForeignKey, func
 from sqlalchemy.dialects.postgresql import UUID, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 from database import Base
@@ -24,21 +24,15 @@ class TripPlan(Base):
         index=True
     )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
-    description: Mapped[str] = mapped_column(Text, nullable=True)
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
     # 目的地列表（有序）：JSON 数组 [{"id": "uuid", "order": 0}, ...]
     destinations: Mapped[list] = mapped_column(JSON, nullable=True, default=list)
     # 用户偏好设置
     preferences: Mapped[dict] = mapped_column(JSON, nullable=True, default=dict)
-    weather_concerns: Mapped[bool] = mapped_column(Boolean, default=False)  # 是否考虑天气
     # 总预算：JSON {"transport": 0, "accommodation": 0, "food": 0, "tickets": 0, "other": 0}
     total_budget: Mapped[dict] = mapped_column(JSON, nullable=True, default=dict)
-    # 多版本行程：sunny（晴天版）/ rainy（下雨版）
-    version: Mapped[str] = mapped_column(String(20), default="sunny")
-    companion_version_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), ForeignKey("trip_plans.id"), nullable=True
-    )
+    group_size: Mapped[int] = mapped_column(nullable=True, default=1)
     # 状态：draft（草稿）/ planning（规划中）/ confirmed（已确认）/ completed（已完成）
     status: Mapped[str] = mapped_column(String(20), default="draft")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

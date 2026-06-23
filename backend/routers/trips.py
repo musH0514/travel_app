@@ -9,12 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from models.trip import TripPlan
 from models.itinerary import ItineraryItem
-from services.weather_service import WeatherService
+from models.destination import Destination
 from utils.deps import get_db, get_current_user
-from routers.auth import UserResponse
 
 router = APIRouter()
-weather_service = WeatherService()
 
 
 # ==================== Pydantic 模型 ====================
@@ -70,13 +68,11 @@ class ItineraryItemCreate(BaseModel):
     start_time: Optional[str] = None  # HH:MM 格式
     end_time: Optional[str] = None
     destination_id: Optional[str] = None
-    activity: str
     activity_type: Optional[str] = "景点"
     transport_mode: Optional[str] = None
     transport_detail: Optional[dict] = None
     notes: Optional[str] = None
     estimated_cost: Optional[float] = 0.0
-    weather_version: Optional[str] = "通用"
     order_index: Optional[int] = 0
 
 
@@ -86,13 +82,11 @@ class ItineraryItemUpdate(BaseModel):
     start_time: Optional[str] = None
     end_time: Optional[str] = None
     destination_id: Optional[str] = None
-    activity: Optional[str] = None
     activity_type: Optional[str] = None
     transport_mode: Optional[str] = None
     transport_detail: Optional[dict] = None
     notes: Optional[str] = None
     estimated_cost: Optional[float] = None
-    weather_version: Optional[str] = None
     order_index: Optional[int] = None
 
 
@@ -104,13 +98,11 @@ class ItineraryItemResponse(BaseModel):
     start_time: Optional[str] = None
     end_time: Optional[str] = None
     destination_id: Optional[str] = None
-    activity: str
     activity_type: str
     transport_mode: Optional[str] = None
     transport_detail: Optional[dict] = None
     notes: Optional[str] = None
     estimated_cost: float
-    weather_version: str
     order_index: int
 
     class Config:
@@ -214,13 +206,11 @@ async def get_trip(
                 "start_time": item.start_time.isoformat() if item.start_time else None,
                 "end_time": item.end_time.isoformat() if item.end_time else None,
                 "destination_id": item.destination_id,
-                "activity": item.activity,
                 "activity_type": item.activity_type,
                 "transport_mode": item.transport_mode,
                 "transport_detail": item.transport_detail,
                 "notes": item.notes,
                 "estimated_cost": item.estimated_cost,
-                "weather_version": item.weather_version,
                 "order_index": item.order_index
             }
             for item in items
@@ -286,7 +276,6 @@ async def delete_trip(
 async def get_itinerary(
     trip_id: str,
     day_number: Optional[int] = Query(None, description="按天数筛选"),
-    weather_version: Optional[str] = Query(None, description="天气版本"),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
@@ -307,10 +296,6 @@ async def get_itinerary(
     )
     if day_number is not None:
         query = query.where(ItineraryItem.day_number == day_number)
-    if weather_version:
-        query = query.where(
-            ItineraryItem.weather_version.in_([weather_version, "通用"])
-        )
 
     result = await db.execute(query)
     items = result.scalars().all()
@@ -323,13 +308,11 @@ async def get_itinerary(
             "start_time": item.start_time.isoformat() if item.start_time else None,
             "end_time": item.end_time.isoformat() if item.end_time else None,
             "destination_id": item.destination_id,
-            "activity": item.activity,
             "activity_type": item.activity_type,
             "transport_mode": item.transport_mode,
             "transport_detail": item.transport_detail,
             "notes": item.notes,
             "estimated_cost": item.estimated_cost,
-            "weather_version": item.weather_version,
             "order_index": item.order_index
         }
         for item in items
@@ -372,19 +355,27 @@ async def add_itinerary_item(
         except (ValueError, IndexError):
             pass
 
+    # 如果指定了目的地，自动从 destinations.category 获取 activity_type
+    activity_type = data.activity_type
+    if data.destination_id:
+        dest_result = await db.execute(
+            select(Destination.category).where(Destination.id == data.destination_id)
+        )
+        dest_category = dest_result.scalar_one_or_none()
+        if dest_category:
+            activity_type = dest_category
+
     item = ItineraryItem(
         trip_id=trip_id,
         day_number=data.day_number,
         start_time=start,
         end_time=end,
         destination_id=data.destination_id,
-        activity=data.activity,
-        activity_type=data.activity_type,
+        activity_type=activity_type,
         transport_mode=data.transport_mode,
         transport_detail=data.transport_detail or {},
         notes=data.notes,
         estimated_cost=data.estimated_cost,
-        weather_version=data.weather_version,
         order_index=data.order_index
     )
     db.add(item)
@@ -398,13 +389,11 @@ async def add_itinerary_item(
         "start_time": item.start_time.isoformat() if item.start_time else None,
         "end_time": item.end_time.isoformat() if item.end_time else None,
         "destination_id": item.destination_id,
-        "activity": item.activity,
         "activity_type": item.activity_type,
         "transport_mode": item.transport_mode,
         "transport_detail": item.transport_detail,
         "notes": item.notes,
         "estimated_cost": item.estimated_cost,
-        "weather_version": item.weather_version,
         "order_index": item.order_index
     }
 
@@ -454,6 +443,15 @@ async def update_itinerary_item(
         except (ValueError, IndexError):
             del update_data["end_time"]
 
+    # 如果更新了 destination_id，自动从 destinations.category 更新 activity_type
+    if "destination_id" in update_data and update_data["destination_id"]:
+        dest_result = await db.execute(
+            select(Destination.category).where(Destination.id == update_data["destination_id"])
+        )
+        dest_category = dest_result.scalar_one_or_none()
+        if dest_category:
+            update_data["activity_type"] = dest_category
+
     for field, value in update_data.items():
         setattr(item, field, value)
 
@@ -467,13 +465,11 @@ async def update_itinerary_item(
         "start_time": item.start_time.isoformat() if item.start_time else None,
         "end_time": item.end_time.isoformat() if item.end_time else None,
         "destination_id": item.destination_id,
-        "activity": item.activity,
         "activity_type": item.activity_type,
         "transport_mode": item.transport_mode,
         "transport_detail": item.transport_detail,
         "notes": item.notes,
         "estimated_cost": item.estimated_cost,
-        "weather_version": item.weather_version,
         "order_index": item.order_index
     }
 
@@ -509,34 +505,3 @@ async def delete_itinerary_item(
     await db.commit()
 
 
-# ==================== 多版本对比 ====================
-
-@router.post("/{trip_id}/compare")
-async def create_comparison(
-    trip_id: str,
-    db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user)
-):
-    """生成行程的天气版本对比（晴天版 vs 下雨版）"""
-    result = await db.execute(
-        select(TripPlan).where(
-            and_(TripPlan.id == trip_id, TripPlan.user_id == current_user.id)
-        )
-    )
-    trip = result.scalar_one_or_none()
-    if not trip:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="行程不存在")
-
-    comparison = await weather_service.compare_weather_versions(trip_id)
-    return comparison
-
-
-@router.get("/{trip_id}/compare")
-async def get_comparison(
-    trip_id: str,
-    db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user)
-):
-    """获取行程的天气版本对比"""
-    comparison = await weather_service.compare_weather_versions(trip_id)
-    return comparison
