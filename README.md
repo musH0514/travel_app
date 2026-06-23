@@ -128,46 +128,47 @@
 
 ```
 travel_app/
-├── backend/                    # FastAPI 后端
-│   ├── config.py               # 配置
-│   ├── database.py             # 数据库连接
-│   ├── main.py                 # 应用入口
-│   ├── requirements.txt        # Python 依赖
-│   ├── models/                 # 数据模型
+├── backend/                          # FastAPI 后端
+│   ├── config.py                     # 配置
+│   ├── database.py                   # 数据库连接
+│   ├── main.py                       # 应用入口
+│   ├── requirements.txt              # Python 依赖
+│   ├── models/                       # 数据模型
 │   │   ├── destination.py
 │   │   ├── itinerary.py
 │   │   ├── trip.py
 │   │   └── user.py
-│   ├── routers/                # 路由
+│   ├── routers/                      # 路由
 │   │   ├── ai_plan.py
 │   │   ├── auth.py
 │   │   ├── destinations.py
 │   │   ├── trips.py
 │   │   └── weather.py
-│   ├── services/               # 业务逻辑
+│   ├── services/                     # 业务逻辑
 │   │   ├── ai_planner.py
 │   │   ├── map_service.py
 │   │   ├── recommendation.py
 │   │   ├── search_service.py
 │   │   └── weather_service.py
-│   └── utils/                  # 工具
+│   └── utils/                        # 工具
 │       ├── cache.py
 │       └── deps.py
-├── docs/                       # 文档
-├── frontend/                   # Next.js 前端
+├── docs/                             # 文档
+|   └── schema.sql                    # 数据库建表
+├── frontend/                         # Next.js 前端
 │   ├── next.config.js
 │   ├── package.json
 │   ├── public/
 │   │   ├── manifest.json
 │   │   └── sw.js
 │   ├── src/
-│   │   ├── api/                # 前端 API 封装
+│   │   ├── api/                      # 前端 API 封装
 │   │   │   ├── ai.ts
 │   │   │   ├── client.ts
 │   │   │   ├── destinations.ts
 │   │   │   ├── trips.ts
 │   │   │   └── weather.ts
-│   │   ├── components/         # UI 组件
+│   │   ├── components/               # UI 组件
 │   │   │   ├── AccommodationCard.tsx
 │   │   │   ├── AiPlanForm.tsx
 │   │   │   ├── BudgetSummary.tsx
@@ -180,18 +181,18 @@ travel_app/
 │   │   │   ├── TransportSelector.tsx
 │   │   │   ├── TripCard.tsx
 │   │   │   └── WeatherCard.tsx
-│   │   ├── pages/              # 页面
+│   │   ├── pages/                    # 页面
 │   │   │   ├── _app.tsx
 │   │   │   ├── _document.tsx
-│   │   │   ├── create-trip.tsx  # 创建新行程
-│   │   │   ├── destinations.tsx # 目的地浏览
-│   │   │   ├── history-trips.tsx# 历史行程
-│   │   │   ├── index.tsx       # 行程主页面（底部导航-行程）
-│   │   │   ├── my-tracks.tsx   # 我的足迹（世界地图）
-│   │   │   ├── profile.tsx     # 个人中心（底部导航-我的）
-│   │   │   ├── settings.tsx    # 设置
-│   │   │   ├── trip-plan.tsx   # 行程详情/AI规划
-│   │   │   └── weather.tsx     # 天气页面
+│   │   │   ├── create-trip.tsx       # 创建新行程
+│   │   │   ├── destinations.tsx      # 目的地浏览
+│   │   │   ├── history-trips.tsx     # 历史行程
+│   │   │   ├── index.tsx             # 行程主页面（底部导航-行程）
+│   │   │   ├── my-tracks.tsx         # 我的足迹（世界地图）
+│   │   │   ├── profile.tsx           # 个人中心（底部导航-我的）
+│   │   │   ├── settings.tsx          # 设置
+│   │   │   ├── trip-plan.tsx         # 行程详情/AI规划
+│   │   │   └── weather.tsx           # 天气页面
 │   │   ├── styles/
 │   │   │   └── globals.css
 │   │   └── utils/
