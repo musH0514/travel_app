@@ -8,8 +8,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from config import settings
-from database import init_db
+from database import init_db, async_session
 from utils.cache import cache
+from utils.status_updater import update_trip_statuses
 from routers.auth import router as auth_router
 from routers.destinations import router as destinations_router
 from routers.trips import router as trips_router
@@ -21,14 +22,23 @@ from routers.ai_plan import router as ai_router
 async def lifespan(app: FastAPI):
     """应用生命周期管理：启动时初始化数据库和缓存"""
     # 启动时初始化
-    print(f"🚀 {settings.APP_NAME} 正在启动...")
+    print(f"[TripWise] {settings.APP_NAME} 正在启动...")
     await init_db()
-    print("✅ 数据库连接已建立")
+    print("[TripWise] 数据库连接已建立")
     await cache.init()
-    print("✅ Redis 缓存已连接")
+    print("[TripWise] Redis 缓存已连接")
+
+    # 根据北京时间自动更新行程状态
+    try:
+        async with async_session() as session:
+            await update_trip_statuses(session)
+        print("[TripWise] 行程状态已更新")
+    except Exception as e:
+        print(f"[TripWise] 行程状态更新失败: {e}")
+
     yield
     # 关闭时清理
-    print("👋 TripWise API 正在关闭...")
+    print("[TripWise] TripWise API 正在关闭...")
 
 
 app = FastAPI(

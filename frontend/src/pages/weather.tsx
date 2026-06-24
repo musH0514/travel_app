@@ -1,43 +1,52 @@
-// ========== 天气页面 ==========
-// 天气预报、预警、对行程影响分析
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import WeatherCard from '@/components/WeatherCard';
 import MapView from '@/components/MapView';
+import { getWeatherForecast, getWeatherAlert } from '@/api/weather';
+import { adaptWeatherForecast, adaptWeatherAlert } from '@/utils/apiAdapters';
 import type { WeatherForecast, WeatherAlert } from '@/utils/types';
-
-// 模拟天气数据
-const mockForecast: WeatherForecast[] = [
-  { date: '2026-06-15', condition: 'sunny', temp: 32, high: 35, low: 25, humidity: 45, windSpeed: 12, icon: 'sunny' },
-  { date: '2026-06-16', condition: 'cloudy', temp: 30, high: 33, low: 24, humidity: 55, windSpeed: 10, icon: 'cloudy' },
-  { date: '2026-06-17', condition: 'light_rain', temp: 28, high: 30, low: 22, humidity: 75, windSpeed: 15, icon: 'light_rain' },
-  { date: '2026-06-18', condition: 'moderate_rain', temp: 25, high: 27, low: 20, humidity: 85, windSpeed: 20, icon: 'moderate_rain' },
-  { date: '2026-06-19', condition: 'sunny', temp: 31, high: 34, low: 23, humidity: 40, windSpeed: 8, icon: 'sunny' },
-  { date: '2026-06-20', condition: 'cloudy', temp: 29, high: 32, low: 22, humidity: 50, windSpeed: 10, icon: 'cloudy' },
-  { date: '2026-06-21', condition: 'sunny', temp: 33, high: 36, low: 26, humidity: 35, windSpeed: 11, icon: 'sunny' },
-];
-
-const mockAlerts: WeatherAlert[] = [
-  { type: '高温', severity: 'orange', message: '预计未来三天将持续高温天气，请注意防暑降温', date: '2026-06-15' },
-  { type: '暴雨', severity: 'yellow', message: '6月18日前后将有暴雨天气，请注意出行安全', date: '2026-06-17' },
-];
-
-// 行程影响分析
-const tripImpact = [
-  { date: '6月15日', condition: '晴朗 ☀️', impact: '适合户外活动，注意防晒', suggestion: '推荐：故宫、长城等户外景点', score: 95 },
-  { date: '6月16日', condition: '多云 ⛅', impact: '天气舒适，适合观光', suggestion: '推荐：颐和园、天坛', score: 90 },
-  { date: '6月17日', condition: '小雨 🌦', impact: '有小雨，建议备伞', suggestion: '推荐：国家博物馆、商场', score: 70 },
-  { date: '6月18日', condition: '中雨 🌧', impact: '中雨天气，建议室内活动', suggestion: '推荐：室内景点、美食探店', score: 45 },
-];
 
 const WeatherPage: React.FC = () => {
   const [location] = useState('北京');
   const [searchQuery, setSearchQuery] = useState('');
   const [showComparison, setShowComparison] = useState(false);
+  const [forecast, setForecast] = useState<WeatherForecast[]>([]);
+  const [alerts, setAlerts] = useState<WeatherAlert[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const loc = { lat: 39.9163, lng: 116.3972 };
+        const [forecastData, alertData] = await Promise.all([
+          getWeatherForecast(loc, {
+            start: new Date().toISOString().slice(0, 10),
+            end: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
+          }),
+          getWeatherAlert(loc),
+        ]);
+        setForecast(adaptWeatherForecast(forecastData as unknown as Record<string, unknown>[]));
+        const adaptedAlerts = adaptWeatherAlert(alertData);
+        setAlerts(adaptedAlerts);
+      } catch {
+        setForecast([]);
+        setAlerts([]);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const tripImpact = forecast.slice(0, 4).map((f) => {
+    const score = f.condition === 'sunny' ? 95 : f.condition === 'cloudy' ? 85 : f.condition.includes('rain') ? 45 : 70;
+    const impact = score >= 80 ? '适合户外活动' : score >= 60 ? '天气一般，注意防护' : '建议室内活动';
+    const suggestion = score >= 80 ? '推荐户外景点' : score >= 60 ? '推荐混合行程' : '推荐室内景点';
+    const dateStr = new Date(f.date).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
+    return { date: dateStr, condition: f.condition, impact, suggestion, score };
+  });
 
   return (
     <div className="pb-4">
-      {/* 搜索/定位 */}
       <div className="px-4 pt-3 pb-2">
         <div className="relative">
           <input
@@ -57,7 +66,6 @@ const WeatherPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 当前城市名称 */}
       <div className="px-4 py-1">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-bold text-gray-800">{location}</h2>
@@ -67,67 +75,73 @@ const WeatherPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 天气卡片（含预警） */}
       <div className="px-4 mt-2">
-        <WeatherCard
-          forecast={mockForecast}
-          alerts={mockAlerts}
-        />
+        {loading ? (
+          <div className="text-center py-8 text-gray-400 text-sm">加载天气数据...</div>
+        ) : (
+          <WeatherCard forecast={forecast} alerts={alerts} />
+        )}
       </div>
 
-      {/* 对行程的影响 */}
       <div className="px-4 mt-5">
         <h3 className="text-sm font-semibold text-gray-800 mb-3">📊 对行程的影响</h3>
         <div className="bg-white rounded-2xl shadow-soft overflow-hidden">
-          {tripImpact.map((day, index) => (
-            <div
-              key={day.date}
-              className={`flex items-center gap-3 p-3.5 ${
-                index < tripImpact.length - 1 ? 'border-b border-gray-50' : ''
-              }`}
-            >
-              {/* 日期 */}
-              <div className="w-16 flex-shrink-0">
-                <span className="text-xs font-medium text-gray-600">{day.date}</span>
-              </div>
-
-              {/* 天气条件 */}
-              <div className="flex items-center gap-1.5 w-16 flex-shrink-0">
-                <span className="text-sm">{day.condition.split(' ')[1] || '☀️'}</span>
-                <span className="text-[10px] text-gray-500">{day.condition.split(' ')[0]}</span>
-              </div>
-
-              {/* 影响和建议 */}
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-gray-700">{day.impact}</p>
-                <p className="text-[10px] text-brand-600 mt-0.5">{day.suggestion}</p>
-              </div>
-
-              {/* 出行评分 */}
-              <div className="flex items-center gap-1.5 flex-shrink-0">
-                <div className="w-10 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${
-                      day.score >= 80 ? 'bg-green-500' :
-                      day.score >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-                    }`}
-                    style={{ width: `${day.score}%` }}
-                  />
+          {tripImpact.length === 0 ? (
+            <div className="text-center py-8 text-gray-400 text-sm">暂无数据</div>
+          ) : (
+            tripImpact.map((day, index) => (
+              <div
+                key={day.date}
+                className={`flex items-center gap-3 p-3.5 ${
+                  index < tripImpact.length - 1 ? 'border-b border-gray-50' : ''
+                }`}
+              >
+                <div className="w-16 flex-shrink-0">
+                  <span className="text-xs font-medium text-gray-600">{day.date}</span>
                 </div>
-                <span className={`text-xs font-medium ${
-                  day.score >= 80 ? 'text-green-600' :
-                  day.score >= 60 ? 'text-yellow-600' : 'text-red-600'
-                }`}>
-                  {day.score}
-                </span>
+
+                <div className="flex items-center gap-1.5 w-16 flex-shrink-0">
+                  <span className="text-sm">
+                    {day.condition === 'sunny' ? '☀️' :
+                     day.condition === 'cloudy' ? '⛅' :
+                     day.condition.includes('rain') ? '🌧' : '☀️'}
+                  </span>
+                  <span className="text-[10px] text-gray-500">
+                    {day.condition === 'sunny' ? '晴' :
+                     day.condition === 'cloudy' ? '多云' :
+                     day.condition.includes('rain') ? '雨' : '晴'}
+                  </span>
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-700">{day.impact}</p>
+                  <p className="text-[10px] text-brand-600 mt-0.5">{day.suggestion}</p>
+                </div>
+
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <div className="w-10 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        day.score >= 80 ? 'bg-green-500' :
+                        day.score >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                      }`}
+                      style={{ width: `${day.score}%` }}
+                    />
+                  </div>
+                  <span className={`text-xs font-medium ${
+                    day.score >= 80 ? 'text-green-600' :
+                    day.score >= 60 ? 'text-yellow-600' : 'text-red-600'
+                  }`}>
+                    {day.score}
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
-      {/* 恶劣天气备选方案按钮 */}
-      {mockAlerts.length > 0 && (
+      {alerts.length > 0 && (
         <div className="px-4 mt-5">
           <button
             onClick={() => setShowComparison(true)}
@@ -141,13 +155,11 @@ const WeatherPage: React.FC = () => {
         </div>
       )}
 
-      {/* 天气地图 */}
       <div className="px-4 mt-5">
         <h3 className="text-sm font-semibold text-gray-800 mb-3">🗺 天气地图</h3>
         <MapView height="200px" />
       </div>
 
-      {/* 版本对比弹出 */}
       {showComparison && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={() => setShowComparison(false)}>
           <div
@@ -167,7 +179,6 @@ const WeatherPage: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              {/* 多云版 */}
               <div className="p-4 bg-yellow-50 rounded-2xl border border-yellow-200">
                 <p className="text-xs font-semibold text-yellow-700 mb-2">☀️ 多云版方案</p>
                 <ul className="space-y-1.5">
@@ -177,7 +188,6 @@ const WeatherPage: React.FC = () => {
                 </ul>
               </div>
 
-              {/* 下雨版 */}
               <div className="p-4 bg-blue-50 rounded-2xl border border-blue-200">
                 <p className="text-xs font-semibold text-blue-700 mb-2">🌧 下雨版方案</p>
                 <ul className="space-y-1.5">

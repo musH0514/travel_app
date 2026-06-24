@@ -1,24 +1,46 @@
-import React, { useState } from 'react';
-
-const visitedCities = [
-  { name: '北京', visited: true },
-  { name: '成都', visited: true },
-  { name: '西安', visited: true },
-  { name: '大理', visited: false },
-  { name: '杭州', visited: true },
-  { name: '三亚', visited: false },
-  { name: '重庆', visited: false },
-  { name: '厦门', visited: true },
-  { name: '青岛', visited: false },
-  { name: '南京', visited: false },
-  { name: '张家界', visited: false },
-  { name: '昆明', visited: true },
-];
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { getTripPlans } from '@/api/trips';
+import { useAuth } from '@/context/AuthContext';
+import { adaptTrip } from '@/utils/apiAdapters';
 
 const MyTracksPage: React.FC = () => {
-  const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const router = useRouter();
+  const { isAuthenticated, loading: authLoading } = useAuth();
+  const [visitedCities, setVisitedCities] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const visitedCount = visitedCities.filter((c) => c.visited).length;
+  useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) {
+      router.push('/login');
+      return;
+    }
+    (async () => {
+      try {
+        const data = await getTripPlans();
+        const trips = (data as unknown as Record<string, unknown>[]).map(adaptTrip);
+        const citySet = new Set<string>();
+        for (const trip of trips) {
+          for (const dest of trip.destinations) {
+            if (dest.name) citySet.add(dest.name);
+          }
+        }
+        setVisitedCities(Array.from(citySet));
+      } catch {
+        setVisitedCities([]);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [isAuthenticated, authLoading, router]);
+
+  const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const visitedCount = visitedCities.length;
+
+  if (authLoading || loading) {
+    return <div className="flex items-center justify-center py-16 text-gray-400 text-sm">加载中...</div>;
+  }
 
   return (
     <div className="pb-6">
@@ -47,22 +69,12 @@ const MyTracksPage: React.FC = () => {
           <div className="grid grid-cols-3 gap-3 relative z-10">
             {visitedCities.map((city) => (
               <button
-                key={city.name}
-                onClick={() => setSelectedCity(city.visited ? city.name : null)}
-                className={`p-3 rounded-2xl text-center transition-all ${
-                  city.visited
-                    ? 'bg-brand-50 border border-brand-200 hover:bg-brand-100'
-                    : 'bg-gray-100 border border-gray-200 opacity-40'
-                }`}
+                key={city}
+                onClick={() => setSelectedCity(city)}
+                className="p-3 rounded-2xl text-center transition-all bg-brand-50 border border-brand-200 hover:bg-brand-100"
               >
-                <span className="text-xl block mb-1">
-                  {city.visited ? '📍' : '🔒'}
-                </span>
-                <span className={`text-xs font-medium ${
-                  city.visited ? 'text-brand-700' : 'text-gray-400'
-                }`}>
-                  {city.name}
-                </span>
+                <span className="text-xl block mb-1">📍</span>
+                <span className="text-xs font-medium text-brand-700">{city}</span>
               </button>
             ))}
           </div>

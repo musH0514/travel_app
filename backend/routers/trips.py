@@ -11,6 +11,7 @@ from models.trip import TripPlan
 from models.itinerary import ItineraryItem
 from models.destination import Destination
 from utils.deps import get_db, get_current_user
+from utils.status_updater import update_trip_statuses
 
 router = APIRouter()
 
@@ -52,11 +53,11 @@ class TripResponse(BaseModel):
     end_date: date
     destinations: Optional[list] = None
     preferences: Optional[dict] = None
-    weather_concerns: bool
+    weather_concerns: bool = False
     total_budget: Optional[dict] = None
-    version: str
+    version: str = "sunny"
     companion_version_id: Optional[str] = None
-    status: str
+    status: str = "draft"
 
     class Config:
         from_attributes = True
@@ -125,6 +126,7 @@ async def list_trips(
     current_user=Depends(get_current_user)
 ):
     """获取用户的所有行程计划"""
+    await update_trip_statuses(db)
     query = select(TripPlan).where(TripPlan.user_id == current_user.id)
     if status_filter:
         query = query.where(TripPlan.status == status_filter)
@@ -143,12 +145,10 @@ async def create_trip(
     trip = TripPlan(
         user_id=current_user.id,
         title=data.title,
-        description=data.description,
         start_date=data.start_date,
         end_date=data.end_date,
         destinations=data.destinations or [],
         preferences=data.preferences or current_user.preferences or {},
-        weather_concerns=data.weather_concerns,
         total_budget=data.total_budget or {"transport": 0, "accommodation": 0, "food": 0, "tickets": 0, "other": 0}
     )
     db.add(trip)
@@ -188,15 +188,15 @@ async def get_trip(
         "id": trip.id,
         "user_id": trip.user_id,
         "title": trip.title,
-        "description": trip.description,
+        "description": getattr(trip, 'description', None),
         "start_date": trip.start_date,
         "end_date": trip.end_date,
         "destinations": trip.destinations,
         "preferences": trip.preferences,
-        "weather_concerns": trip.weather_concerns,
+        "weather_concerns": False,
         "total_budget": trip.total_budget,
-        "version": trip.version,
-        "companion_version_id": trip.companion_version_id,
+        "version": "sunny",
+        "companion_version_id": None,
         "status": trip.status,
         "itinerary": [
             {
@@ -240,8 +240,10 @@ async def update_trip(
         )
 
     update_data = data.model_dump(exclude_unset=True)
+    allowed_fields = {"title", "start_date", "end_date", "destinations", "preferences", "total_budget", "status"}
     for field, value in update_data.items():
-        setattr(trip, field, value)
+        if field in allowed_fields:
+            setattr(trip, field, value)
 
     await db.commit()
     await db.refresh(trip)

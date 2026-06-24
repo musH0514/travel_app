@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/router';
-import { TRIP_STYLES, BUDGET_LEVELS, STORAGE_KEYS } from '@/utils/constants';
-import type { TripStyle, BudgetLevel } from '@/utils/types';
+import { TRIP_STYLES, BUDGET_LEVELS } from '@/utils/constants';
+import type { TripStyle, BudgetLevel, AiPlanFormData } from '@/utils/types';
+import { generateTripPlan } from '@/api/ai';
+import { useAuth } from '@/context/AuthContext';
 
 const recentSearches = ['北京', '成都', '云南', '日本', '泰国'];
 const hotDestinations = ['三亚', '杭州', '西安', '重庆', '厦门', '青岛', '张家界', '南京'];
 
 const CreateTripPage: React.FC = () => {
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
 
   const [destSearch, setDestSearch] = useState('');
   const [selectedStyles, setSelectedStyles] = useState<TripStyle[]>([]);
@@ -16,6 +19,7 @@ const CreateTripPage: React.FC = () => {
   const [endDate, setEndDate] = useState('');
   const [specialRequirements, setSpecialRequirements] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -27,8 +31,39 @@ const CreateTripPage: React.FC = () => {
     }
   };
 
-  const handleSubmit = () => {
-    router.push('/');
+  const handleSubmit = async () => {
+    if (!isAuthenticated) {
+      router.push('/login');
+      return;
+    }
+
+    if (!destSearch.trim() || !startDate || !endDate) return;
+
+    setSubmitting(true);
+    try {
+      const data: AiPlanFormData = {
+        destinations: destSearch,
+        startDate,
+        endDate,
+        styles: selectedStyles.length > 0 ? selectedStyles : ['休闲度假'] as TripStyle[],
+        budgetLevel,
+        specialRequirements,
+      };
+
+      await generateTripPlan({
+        destinations: data.destinations.split(/[,，、\s]+/).filter(Boolean),
+        startDate: data.startDate,
+        endDate: data.endDate,
+        styles: data.styles,
+        budgetLevel: data.budgetLevel,
+        specialRequirements: data.specialRequirements,
+      });
+      router.push('/');
+    } catch {
+      router.push('/');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -192,9 +227,10 @@ const CreateTripPage: React.FC = () => {
 
         <button
           onClick={handleSubmit}
-          className="w-full py-3.5 bg-gradient-to-r from-brand-500 to-brand-600 text-white text-base font-semibold rounded-xl active:opacity-90 transition-opacity shadow-soft"
+          disabled={submitting}
+          className="w-full py-3.5 bg-gradient-to-r from-brand-500 to-brand-600 text-white text-base font-semibold rounded-xl active:opacity-90 transition-opacity shadow-soft disabled:opacity-60"
         >
-          🚀 开始规划
+          {submitting ? '规划中...' : '🚀 开始规划'}
         </button>
       </div>
     </div>

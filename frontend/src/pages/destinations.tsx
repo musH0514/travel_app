@@ -1,22 +1,11 @@
-// ========== 目的地页面 ==========
-// 搜索、分类筛选、列表/地图切换
-
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import DestinationCard from '@/components/DestinationCard';
 import MapView from '@/components/MapView';
 import type { Destination } from '@/utils/types';
 import { DESTINATION_CATEGORIES, TRIP_STYLES, BUDGET_LEVELS } from '@/utils/constants';
-
-// 模拟目的地数据
-const mockDestinations: Destination[] = [
-  { id: 'd1', name: '故宫博物院', description: '中国古代皇家宫殿建筑，世界文化遗产，感受六百年的历史沉淀', location: { lat: 39.9163, lng: 116.3972 }, images: [], category: 'culture', rating: 4.9, price: 60, tags: ['历史', '建筑', '文化'], duration: 4 },
-  { id: 'd2', name: '西湖', description: '杭州西湖，人间天堂，断桥残雪、雷峰夕照等十景闻名天下', location: { lat: 30.2592, lng: 120.1528 }, images: [], category: 'natural', rating: 4.8, price: 0, tags: ['自然', '湖泊', '摄影'], duration: 3 },
-  { id: 'd3', name: '锦里古街', description: '成都最具特色的仿古商业街，汇集四川美食和手工艺品', location: { lat: 30.6488, lng: 104.0474 }, images: [], category: 'food', rating: 4.5, price: 100, tags: ['美食', '古镇', '小吃'], duration: 2 },
-  { id: 'd4', name: '三里屯', description: '北京时尚潮流地标，购物、餐饮、娱乐一体化的商业区', location: { lat: 39.9333, lng: 116.4553 }, images: [], category: 'shopping', rating: 4.3, price: 500, tags: ['购物', '时尚', '美食'], duration: 3 },
-  { id: 'd5', name: '八达岭长城', description: '万里长城的精华段，世界新七大奇迹之一', location: { lat: 40.3591, lng: 116.0164 }, images: [], category: 'natural', rating: 4.7, price: 40, tags: ['历史', '爬山', '摄影'], duration: 5 },
-  { id: 'd6', name: '南锣鼓巷', description: '北京最古老的街区之一，老北京胡同文化的代表', location: { lat: 39.9402, lng: 116.4039 }, images: [], category: 'culture', rating: 4.4, price: 0, tags: ['胡同', '文艺', '小吃'], duration: 2 },
-];
+import { getDestinations, searchDestinations } from '@/api/destinations';
+import { adaptDestination } from '@/utils/apiAdapters';
 
 const DestinationsPage: React.FC = () => {
   const router = useRouter();
@@ -24,59 +13,65 @@ const DestinationsPage: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState('all');
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [showFilters, setShowFilters] = useState(false);
+  const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     style: '',
     budget: '',
     duration: '',
   });
 
-  // 过滤目的地
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        if (searchQuery.trim()) {
+          const data = await searchDestinations(searchQuery.trim());
+          setDestinations((data as unknown as Record<string, unknown>[]).map(adaptDestination));
+        } else {
+          const params: Record<string, string | number | undefined> = {};
+          if (activeCategory !== 'all') {
+            const catMap: Record<string, string> = {
+              'natural': '自然风光',
+              'culture': '人文历史',
+              'food': '美食购物',
+              'shopping': '美食购物',
+            };
+            params.category = catMap[activeCategory];
+          }
+          const data = await getDestinations(params);
+          const list = (data as unknown as Record<string, unknown>).data as Array<Record<string, unknown>> || data as unknown as Array<Record<string, unknown>>;
+          setDestinations((Array.isArray(list) ? list : []).map(adaptDestination));
+        }
+      } catch {
+        setDestinations([]);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [searchQuery, activeCategory]);
+
   const filteredDestinations = useCallback(() => {
-    let result = [...mockDestinations];
+    let result = [...destinations];
 
-    // 搜索过滤
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(
-        (d) =>
-          d.name.toLowerCase().includes(query) ||
-          d.description.toLowerCase().includes(query) ||
-          d.tags.some((t) => t.toLowerCase().includes(query))
-      );
-    }
-
-    // 分类过滤
-    if (activeCategory !== 'all') {
-      result = result.filter((d) => d.category === activeCategory);
-    }
-
-    // 风格过滤
-    if (filters.style) {
-      result = result.filter((d) => d.tags.includes(filters.style));
-    }
-
-    // 预算过滤
     if (filters.budget) {
       const maxPrice: Record<string, number> = { '经济型': 100, '舒适型': 300, '轻奢型': 800, '豪华型': 99999 };
       result = result.filter((d) => d.price <= (maxPrice[filters.budget] || 99999));
     }
 
     return result;
-  }, [searchQuery, activeCategory, filters]);
+  }, [destinations, filters]);
 
   const displayDestinations = filteredDestinations();
 
-  // 重置筛选条件
   const clearFilters = () => {
     setFilters({ style: '', budget: '', duration: '' });
   };
 
-  // 是否有激活的筛选
   const hasActiveFilters = filters.style || filters.budget || filters.duration;
 
   return (
     <div className="pb-4">
-      {/* 搜索栏 */}
       <div className="px-4 pt-3 pb-2">
         <div className="relative">
           <input
@@ -89,7 +84,6 @@ const DestinationsPage: React.FC = () => {
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
-          {/* 筛选按钮 */}
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
@@ -103,10 +97,8 @@ const DestinationsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 筛选面板 - 底部弹出 */}
       {showFilters && (
         <div className="mx-4 mb-2 p-4 bg-white rounded-2xl border border-gray-100 shadow-medium animate-slide-down">
-          {/* 出行风格 */}
           <div className="mb-4">
             <p className="text-xs font-medium text-gray-600 mb-2">出行风格</p>
             <div className="flex flex-wrap gap-2">
@@ -126,7 +118,6 @@ const DestinationsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* 预算等级 */}
           <div className="mb-4">
             <p className="text-xs font-medium text-gray-600 mb-2">预算等级</p>
             <div className="flex gap-2">
@@ -146,7 +137,6 @@ const DestinationsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* 操作按钮 */}
           <div className="flex gap-3">
             <button
               onClick={clearFilters}
@@ -164,7 +154,6 @@ const DestinationsPage: React.FC = () => {
         </div>
       )}
 
-      {/* 分类标签 */}
       <div className="px-4 pb-2 overflow-x-auto scrollbar-hide">
         <div className="flex gap-2">
           {DESTINATION_CATEGORIES.map((cat) => (
@@ -187,10 +176,9 @@ const DestinationsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 列表/地图切换 */}
       <div className="px-4 flex items-center justify-between mb-3">
         <p className="text-xs text-gray-400">
-          找到 {displayDestinations.length} 个目的地
+          {loading ? '搜索中...' : `找到 ${displayDestinations.length} 个目的地`}
         </p>
         <div className="flex bg-gray-100 rounded-full p-0.5">
           <button
@@ -212,11 +200,11 @@ const DestinationsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 内容区域 */}
       {viewMode === 'list' ? (
-        // 列表视图 - 2列网格
         <div className="px-4">
-          {displayDestinations.length === 0 ? (
+          {loading ? (
+            <div className="flex items-center justify-center py-12 text-gray-400 text-sm">加载中...</div>
+          ) : displayDestinations.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-gray-400">
               <span className="text-4xl mb-3">🔍</span>
               <p className="text-sm">没有找到匹配的目的地</p>
@@ -240,7 +228,6 @@ const DestinationsPage: React.FC = () => {
           )}
         </div>
       ) : (
-        // 地图视图
         <div className="px-4">
           <MapView
             destinations={displayDestinations}
