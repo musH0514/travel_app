@@ -75,20 +75,53 @@
 
 ### 环境变量
 
-| 变量 | 说明 |
-|------|------|
-| `AMAP_KEY` | 高德地图 JS API Key |
-| `GOOGLE_MAPS_KEY` | Google Maps API Key |
-| `DEEPSEEK_API_KEY` | DeepSeek API Key |
-| `GEMINI_API_KEY` | Google Gemini API Key|
-| `OPENAI_API_KEY` | OpenAI API Key | 
-| `SERPAPI_KEY` | SerpAPI Key |
-| `HEFENG_KEY` | 和风天气 Key |
-| `OPENWEATHER_KEY` | OpenWeatherMap Key |
-| `DATABASE_URL` | PostgreSQL 连接串 |
-| `REDIS_URL` | Redis 连接串 |
+- [x] Node.js 18+ 和 npm（前端 Next.js）
+- [x] Python 3.10+ 和 pip（后端 FastAPI）
+- [x] PostgreSQL 数据库
+- [x] Redis（缓存天气/搜索结果）
+
+### API keys
+
+- [x] AMAP_KEY (高德地图 JS API Key)
+- [x] GOOGLE_MAPS_KEY (Google Maps API Key)
+- [x] DEEPSEEK_API_KEY (DeepSeek API Key)
+- [x] GMINI_API_KEY (Google Gemini API Key)
+- [x] OPENAI_API_KEY (OpenAI API Key)
+- [x] SERPAPI_KEY (SerpAPI Key)
+- [x] HEFENG_KEY (和风天气 Key)
+- [x] OPENWEATHER_KEY (OpenWeatherMap Key)
+- [x] DATABASE_URL (PostgreSQL 连接串)
+- [x] REDIS_URL (Redis 连接串)
 
 * openai, gemini, deepseek的api免费版都有额度限制，基本上只能用最低配的模型。gemini和deepseek的api付费方式都是充值然后按token扣余额，api的费用单独计算，和网页聊天的套餐无关；openai的api套餐和网页聊天的套餐是同一个，额度对应。
+
+### PostgreSQL 数据库结构：
+
+- users — 用户账户
+
+|id|username|email|hashed_password|avatar_url|preferences|is_active|created_at|updated_at|
+|---|---|---|---|---|---|---|---|---|
+
+- destinations — 目的地/景点/住宿/餐饮统一表
+
+|id|name|name_en|description|location|country|city|address|category|images|rating|budget_per_person|suggested_duration|created_at|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+
+- trip_plans — 行程计划
+
+|id|user_id|title|start_date|end_date|destinations|preferences|total_budget|group_size|status|created_at|updated_at|
+|---|---|---|---|---|---|---|---|---|---|---|---|
+
+- itinerary_items — 行程活动明细
+
+|id|trip_id|day_number|order_index|start_time|end_time|destination_id|activity_type|transport_mode|transport_detail|notes|estimated_cost|
+|---|---|---|---|---|---|---|---|---|---|---|---|
+
+- style_tags — 旅行风格标签
+
+|id|tag_name|
+|---|---|
+
 
 ### 模块架构
 
@@ -203,20 +236,6 @@ travel_app/
 └── README.md
 ```
 
-## 准备工作
-
-### 环境与工具
-- [x] Node.js 18+ 和 npm（前端 Next.js）
-- [x] Python 3.10+ 和 pip（后端 FastAPI）
-- [x] PostgreSQL 数据库
-- [x] Redis（缓存天气/搜索结果）
-- [x] Git
-
-### 需要申请 API Key
-- [ ] 高德地图 JS API Key（前端地图展示）
-- [x] DeepSeek API Key（AI 路线生成）
-- [ ] 和风天气 Key（天气预报接入）
-
 ### 需要了解的资料
 - Next.js 项目结构和 SSR/SSG 的基本用法
 - FastAPI 路由、依赖注入和异步处理
@@ -225,38 +244,11 @@ travel_app/
 - 和风天气 API 的接口文档
 - PostgreSQL 建表和基本查询
 
-### PostgreSQL 数据库结构：
-
-- users — 用户账户
-
-|id|username|email|hashed_password|avatar_url|preferences|is_active|created_at|updated_at|
-|---|---|---|---|---|---|---|---|---|
-
-- destinations — 目的地/景点/住宿/餐饮统一表
-
-|id|name|name_en|description|location|country|city|address|category|images|rating|budget_per_person|suggested_duration|created_at|
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-
-- trip_plans — 行程计划
-
-|id|user_id|title|start_date|end_date|destinations|preferences|total_budget|group_size|status|created_at|updated_at|
-|---|---|---|---|---|---|---|---|---|---|---|---|
-
-- itinerary_items — 行程明细（每天的活动）
-
-|id|trip_id|day_number|order_index|start_time|end_time|destination_id|activity_type|transport_mode|transport_detail|notes|estimated_cost|
-|---|---|---|---|---|---|---|---|---|---|---|---|
-
-- style_tags — 旅行风格标签
-
-|id|tag_name|
-|---|---|
-
 
 ## 分阶段开发路线
 
 ### Phase 1: MVP 原型（1-2 个月）
-- [ ] 用户系统（注册/偏好收集）
+- [x] 用户系统（注册/偏好收集）
 - [x] 目的地 CRUD（手动添加 + 基本推荐）
 - [ ] 地图展示（高德地图 SDK 集成）
 - [ ] 天气接入 + 展示
