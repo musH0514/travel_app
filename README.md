@@ -11,65 +11,78 @@
 ## 核心功能
 
 ### 1. 目的地推荐与管理
+
 - 根据用户偏好（风格/预算/时间）推荐目的地
 - 支持用户手动添加明确想去的地点
 - 所有目的地在地图上可视化展示
 
 ### 2. 智能交通规划
+
 - 目的地间多种交通方式查询（自驾/公交/步行/打车）
 - 自动推荐最优交通方案（时间/价格/便捷性综合评分）
 - 附人均交通预算
 
 ### 3. AI 游览方案生成
+
 - 根据用户偏好（网红打卡/文艺漫步/亲子/深度文化等）定制方案
 - 自动分配每个景点的建议游玩时间
 - 方案来源：LLM 实时搜索 + 结构化 API 增强
 - 附各景点门票/消费预算
 
 ### 4. 餐饮推荐
+
 - 根据行程路线顺路推荐用餐地点
 - 支持用户指定想去餐厅并规划路线
 - 附人均餐饮预算
 
 ### 5. 住宿推荐
+
 - 根据预算、品质要求、距景点远近等多维度推荐
 - 附住宿预算
 
 ### 6. 天气感知（差异化亮点）
+
 - 规划时即显示出行日天气预报
 - 恶劣天气自动触发备选预案（如雨天转室内活动）
 - 支持"多云版 vs 下雨版"行程比较
 
 ### 7. 行李建议
+
 - 证件资料建议，如护照、身份证等纸质资料
 - 根据天气情况和目的地自然环境提供衣物建议，如雨伞、登山鞋等
 
 ## 技术栈
 
 ### 前端
+
 - **Next.js** (SSR/SSG，SEO 友好)
 - Tailwind CSS
 - 高德地图 JS API（国内）/ Google Maps API（海外）
 
 ### 后端
+
 - Python FastAPI（AI 处理 + 业务逻辑）
 - PostgreSQL（结构化数据）
 - Redis（缓存天气/搜索结果）
 
 ### AI / 数据
+
 - **DeepSeek API**（主力 LLM，性价比高）
 - Claude API（高精度场景备用）
 - **SerpAPI**（实时搜索小红书/马蜂窝等平台内容）
 - Bing Search API（搜索增强）
 
 ### 第三方服务
-| 服务 | 国内 | 海外 |
-|------|------|------|
-| 地图 | 高德地图 | Google Maps |
-| 天气 | 和风天气 | OpenWeatherMap |
-| 交通 | 高德路径规划 | Rome2Rio |
-| 餐饮 | 大众点评 | Google Places |
-| 住宿 | 携程 | Booking.com |
+
+
+| 服务  | 国内     | 海外             |
+| --- | ------ | -------------- |
+| 地图  | 高德地图   | Google Maps    |
+| 天气  | 和风天气   | OpenWeatherMap |
+| 交通  | 高德路径规划 | Rome2Rio       |
+| 餐饮  | 大众点评   | Google Places  |
+| 住宿  | 携程     | Booking.com    |
+
 
 ## 项目结构
 
@@ -93,34 +106,43 @@
 - [x] DATABASE_URL (PostgreSQL 连接串)
 - [x] REDIS_URL (Redis 连接串)
 
-* openai, gemini, deepseek的api免费版都有额度限制，基本上只能用最低配的模型。gemini和deepseek的api付费方式都是充值然后按token扣余额，api的费用单独计算，和网页聊天的套餐无关；openai的api套餐和网页聊天的套餐是同一个，额度对应。
+#### openai, gemini, deepseek的api免费版都有额度限制，基本上只能用最低配的模型。gemini和deepseek的api付费方式都是充值然后按token扣余额，api的费用单独计算，和网页聊天的套餐无关；openai的api套餐和网页聊天的套餐是同一个，额度对应。
 
 ### PostgreSQL 数据库结构：
 
 - users — 用户账户
 
-|id|username|email|hashed_password|avatar_url|preferences|is_active|created_at|updated_at|
-|---|---|---|---|---|---|---|---|---|
+
+| id  | username | email | hashed_password | avatar_url | preferences | is_active | created_at | updated_at |
+| --- | -------- | ----- | --------------- | ---------- | ----------- | --------- | ---------- | ---------- |
+
 
 - destinations — 目的地/景点/住宿/餐饮统一表
 
-|id|name|name_en|description|location|country|city|address|category|images|rating|budget_per_person|suggested_duration|created_at|
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+
+| id  | name | name_en | description | location | country | city | address | category | images | rating | budget_per_person | suggested_duration | created_at |
+| --- | ---- | ------- | ----------- | -------- | ------- | ---- | ------- | -------- | ------ | ------ | ----------------- | ------------------ | ---------- |
+
 
 - trip_plans — 行程计划
 
-|id|user_id|title|start_date|end_date|destinations|preferences|total_budget|group_size|status|created_at|updated_at|
-|---|---|---|---|---|---|---|---|---|---|---|---|
+
+| id  | user_id | title | start_date | end_date | destinations | preferences | total_budget | group_size | status | created_at | updated_at |
+| --- | ------- | ----- | ---------- | -------- | ------------ | ----------- | ------------ | ---------- | ------ | ---------- | ---------- |
+
 
 - itinerary_items — 行程活动明细
 
-|id|trip_id|day_number|order_index|start_time|end_time|destination_id|activity_type|transport_mode|transport_detail|notes|estimated_cost|
-|---|---|---|---|---|---|---|---|---|---|---|---|
+
+| id  | trip_id | day_number | order_index | start_time | end_time | destination_id | activity_type | transport_mode | transport_detail | notes | estimated_cost |
+| --- | ------- | ---------- | ----------- | ---------- | -------- | -------------- | ------------- | -------------- | ---------------- | ----- | -------------- |
+
 
 - style_tags — 旅行风格标签
 
-|id|tag_name|
-|---|---|
+
+| id  | tag_name |
+| --- | -------- |
 
 
 ### 模块架构
@@ -156,6 +178,8 @@
 │          PostgreSQL + Redis         │
 └─────────────────────────────────────┘
 ```
+
+
 
 ### 文件目录结构
 
@@ -237,6 +261,7 @@ travel_app/
 ```
 
 ### 需要了解的资料
+
 - Next.js 项目结构和 SSR/SSG 的基本用法
 - FastAPI 路由、依赖注入和异步处理
 - 高德地图 JS API 的集成方式（地图展示、标记）
@@ -244,10 +269,10 @@ travel_app/
 - 和风天气 API 的接口文档
 - PostgreSQL 建表和基本查询
 
-
 ## 分阶段开发路线
 
 ### Phase 1: MVP 原型（1-2 个月）
+
 - [x] 用户系统（注册/偏好收集）
 - [x] 目的地 CRUD（手动添加 + 基本推荐）
 - [ ] 地图展示（高德地图 SDK 集成）
@@ -255,22 +280,26 @@ travel_app/
 - [ ] 基础 AI 路线生成（DeepSeek API）
 
 ### Phase 2: 智能规划（2-3 个月）
+
 - [ ] 交通方案推荐（Rome2Rio / 高德路径规划）
 - [ ] AI 游览方案深度定制（多风格支持）
 - [ ] 餐饮推荐（顺路算法 + 第三方 API）
 - [ ] 住宿推荐（预算/品质/距离多维排序）
 
 ### Phase 3: 天气备选 + 差异化（1-2 个月）
+
 - [ ] 7 天天气预报接入
 - [ ] 恶劣天气自动触发备选方案
 - [ ] 行程版本比较（多云 vs 下雨）
 
 ### Phase 4: 数据增强（1-2 个月）
+
 - [ ] SerpAPI / Bing Search 实时搜索增强
 - [ ] AI 搜索小红书/马蜂窝/豆瓣内容
 - [ ] 用户反馈闭环（纠错 + 评分）
 
 ### Phase 5: 打磨发布（1 个月）
+
 - [ ] UI/UX 打磨
 - [ ] 性能优化（缓存策略）
 - [ ] 上线 + 迭代
@@ -288,3 +317,4 @@ cd backend
 python -m pip install -r requirements.txt  # already satisfied
 python -m uvicorn main:app --reload
 ```
+
