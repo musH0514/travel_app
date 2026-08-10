@@ -1,9 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import TripCard from '@/components/TripCard';
+import YearDivider from '@/components/YearDivider';
 import { getTripPlans } from '@/api/trips';
 import { useAuth } from '@/context/AuthContext';
 import { adaptTrip } from '@/utils/apiAdapters';
+import { STORAGE_KEYS } from '@/utils/constants';
+import { restoreScrollPosition } from '@/utils/scrollRestoration';
 import type { TripPlan } from '@/utils/types';
 
 const HistoryTripsPage: React.FC = () => {
@@ -31,11 +34,18 @@ const HistoryTripsPage: React.FC = () => {
     })();
   }, [isAuthenticated, authLoading, router]);
 
+  useLayoutEffect(() => {
+    if (loading) return;
+    restoreScrollPosition(STORAGE_KEYS.SCROLL_HISTORY_TRIPS);
+  }, [loading]);
+
   if (authLoading || loading) {
     return <div className="flex items-center justify-center py-16 text-gray-400 text-sm">加载中...</div>;
   }
 
-  const completedTrips = trips.filter((t) => t.status === 'completed');
+  const completedTrips = trips
+    .filter((t) => t.status === 'completed')
+    .sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime());
 
   return (
     <div className="pb-6">
@@ -47,9 +57,24 @@ const HistoryTripsPage: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-3">
-            {completedTrips.map((trip) => (
-              <TripCard key={trip.id} trip={trip} />
-            ))}
+            {completedTrips.map((trip, index) => {
+              const year = new Date(trip.startDate).getFullYear();
+              const prevYear =
+                index > 0
+                  ? new Date(completedTrips[index - 1].startDate).getFullYear()
+                  : null;
+              const showYearDivider = index === 0 || year !== prevYear;
+
+              return (
+                <React.Fragment key={trip.id}>
+                  {showYearDivider && <YearDivider year={year} />}
+                  <TripCard
+                    trip={trip}
+                    scrollRestoreKey={STORAGE_KEYS.SCROLL_HISTORY_TRIPS}
+                  />
+                </React.Fragment>
+              );
+            })}
           </div>
         )}
       </div>

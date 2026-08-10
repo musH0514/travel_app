@@ -2,12 +2,19 @@ import React from 'react';
 import { useRouter } from 'next/router';
 import type { TripPlan } from '@/utils/types';
 import { BUDGET_LEVELS } from '@/utils/constants';
+import { saveScrollPosition } from '@/utils/scrollRestoration';
 
 interface TripCardProps {
   trip: TripPlan;
+  scrollRestoreKey?: string;
+  scrollContainerRef?: React.RefObject<HTMLElement | null>;
 }
 
-const TripCard: React.FC<TripCardProps> = ({ trip }) => {
+const TripCard: React.FC<TripCardProps> = ({
+  trip,
+  scrollRestoreKey,
+  scrollContainerRef,
+}) => {
   const router = useRouter();
 
   const formatDate = (dateStr: string) => {
@@ -31,6 +38,9 @@ const TripCard: React.FC<TripCardProps> = ({ trip }) => {
   };
 
   const handleClick = () => {
+    if (scrollRestoreKey) {
+      saveScrollPosition(scrollRestoreKey, scrollContainerRef?.current);
+    }
     router.push(`/trip-plan?id=${trip.id}`, undefined, { scroll: false });
   };
 

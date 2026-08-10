@@ -75,6 +75,8 @@ export const STORAGE_KEYS = {
   HEFENG_KEY: 'tripwise_hefeng_key',
   RECENT_SEARCHES: 'tripwise_recent_searches',
   DRAFT_TRIP: 'tripwise_draft_trip',
+  SCROLL_HOME: 'tripwise_scroll_home',
+  SCROLL_HISTORY_TRIPS: 'tripwise_scroll_history_trips',
 } as const;
 
 // 页面路由

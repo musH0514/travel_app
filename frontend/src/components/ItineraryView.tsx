@@ -1,7 +1,7 @@
 // ========== 行程详情视图 ==========
 // 以时间线形式展示每日行程，支持拖拽排序和版本切换
 
-import React, { useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import type { Itinerary, ItineraryDay, WeatherForecast } from '@/utils/types';
 
 interface ItineraryViewProps {
@@ -27,17 +27,54 @@ const ItineraryView: React.FC<ItineraryViewProps> = ({
   itinerary,
   weatherForecasts = [],
 }) => {
-  const [expandedDay, setExpandedDay] = useState<number | null>(0);
+  const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set());
+  const dayButtonRefs = useRef<Record<number, HTMLButtonElement | null>>({});
+  const pendingAnchorRef = useRef<{
+    scrollY: number;
+    btnTop: number;
+    dayNumber: number;
+  } | null>(null);
 
   // 获取某天的天气预报
   const getWeatherForDay = (date: string): WeatherForecast | undefined => {
     return weatherForecasts.find((wf) => wf.date === date);
   };
 
-  // 展开/折叠某天
+  // 展开/折叠某天（可多天同时展开），锚定按钮视口位置避免页面跳动
   const toggleDay = (dayNumber: number) => {
-    setExpandedDay(expandedDay === dayNumber ? null : dayNumber);
+    const btn = dayButtonRefs.current[dayNumber];
+    if (btn) {
+      pendingAnchorRef.current = {
+        scrollY: window.scrollY,
+        btnTop: btn.getBoundingClientRect().top,
+        dayNumber,
+      };
+    }
+    setExpandedDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(dayNumber)) {
+        next.delete(dayNumber);
+      } else {
+        next.add(dayNumber);
+      }
+      return next;
+    });
   };
+
+  useLayoutEffect(() => {
+    const anchor = pendingAnchorRef.current;
+    if (!anchor) return;
+    pendingAnchorRef.current = null;
+
+    const targetBtn = dayButtonRefs.current[anchor.dayNumber];
+    if (!targetBtn) return;
+
+    const newBtnTop = targetBtn.getBoundingClientRect().top;
+    const delta = newBtnTop - anchor.btnTop;
+    if (delta !== 0) {
+      window.scrollTo(0, anchor.scrollY + delta);
+    }
+  }, [expandedDays]);
 
   // 获取交通方式图标
   const getTransportIcon = (mode: string) => {
@@ -95,7 +132,7 @@ const ItineraryView: React.FC<ItineraryViewProps> = ({
 
   // 渲染每日行程
   const renderDay = (day: ItineraryDay) => {
-    const isExpanded = expandedDay === day.dayNumber;
+    const isExpanded = expandedDays.has(day.dayNumber);
     const weather = day.weather || getWeatherForDay(day.date);
 
     return (
@@ -107,14 +144,16 @@ const ItineraryView: React.FC<ItineraryViewProps> = ({
             : 'border-gray-100 bg-white'
         } ${isExpanded ? 'shadow-medium' : 'shadow-soft'}`}
       >
-        {/* 日期头部 - 展开时固定 */}
-        <div className="sticky top-12 z-10">
-          <button
-            onClick={() => toggleDay(day.dayNumber)}
-            className={`w-full p-4 flex items-center gap-3 active:bg-gray-50/50 ${
-              isExpanded ? 'rounded-t-2xl' : 'rounded-2xl'
-            } ${day.isBadWeather ? 'bg-red-50/30' : 'bg-white'}`}
-          >
+        <button
+          type="button"
+          ref={(el) => {
+            dayButtonRefs.current[day.dayNumber] = el;
+          }}
+          onClick={() => toggleDay(day.dayNumber)}
+          className={`w-full p-4 flex items-center gap-3 active:bg-gray-50/50 ${
+            isExpanded ? 'rounded-t-2xl' : 'rounded-2xl'
+          } ${day.isBadWeather ? 'bg-red-50/30' : 'bg-white'}`}
+        >
           {/* 日期信息 */}
           <div className="flex flex-col items-center min-w-[44px]">
             <span className="text-sm font-bold text-brand-700">Day {day.dayNumber}</span>
@@ -156,11 +195,10 @@ const ItineraryView: React.FC<ItineraryViewProps> = ({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>
-        </div>
 
         {/* 展开的日程详情 */}
         {isExpanded && (
-          <div className="px-4 pb-4 animate-slide-down">
+          <div className="px-4 pb-4">
             {/* 全天花费摘要 */}
             <div className="flex items-center gap-3 px-3 py-2 bg-gray-50 rounded-xl mb-3">
               <span className="text-xs text-gray-500">本日花费</span>
