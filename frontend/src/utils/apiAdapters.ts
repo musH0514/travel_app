@@ -115,40 +115,54 @@ export function adaptDestination(backendDest: Record<string, unknown>): Destinat
 
 export function adaptItinerary(
   tripId: string,
-  items: Array<Record<string, unknown>>
+  items: Array<Record<string, unknown>>,
+  tripStartDate?: string
 ): Itinerary {
   const dayMap = new Map<number, ItineraryDay>();
 
   for (const item of items) {
     const dayNumber = item.day_number as number;
+    const itemDate = (item.date as string) || '';
     if (!dayMap.has(dayNumber)) {
       dayMap.set(dayNumber, {
-        date: '',
+        date: itemDate,
         dayNumber,
         items: [],
       });
+    } else if (!dayMap.get(dayNumber)!.date && itemDate) {
+      dayMap.get(dayNumber)!.date = itemDate;
     }
 
     const startTime = item.start_time as string | null;
-    const endTime = item.end_time as string | null;
     const transportDetail = item.transport_detail as Record<string, unknown> | null;
+    const nestedDest = item.destination as Record<string, unknown> | null | undefined;
+    const loc = (nestedDest?.location as { lat: number; lng: number } | undefined) || {
+      lat: 0,
+      lng: 0,
+    };
 
     const itineraryItem: ItineraryItem = {
       day: dayNumber,
       timeSlot: getTimeSlot(startTime),
       destination: {
-        id: item.destination_id as string || '',
-        name: '',
-        description: '',
-        location: { lat: 0, lng: 0 },
-        images: [],
-        category: '',
-        rating: 0,
-        price: 0,
-        tags: [],
-        duration: 0,
+        id: (nestedDest?.id as string) || (item.destination_id as string) || '',
+        name: (nestedDest?.name as string) || '',
+        description: (nestedDest?.description as string) || '',
+        location: loc,
+        images: (nestedDest?.images as string[]) || [],
+        category: (nestedDest?.category as string) || '',
+        rating: (nestedDest?.rating as number) || 0,
+        price:
+          (nestedDest?.price as number) ||
+          (nestedDest?.budget_per_person as number) ||
+          0,
+        tags: (nestedDest?.tags as string[]) || [],
+        duration:
+          (nestedDest?.duration as number) ||
+          (nestedDest?.suggested_duration as number) ||
+          0,
       },
-      activity: item.notes as string || item.activity_type as string || '',
+      activity: (item.notes as string) || (item.activity_type as string) || '',
       transport: {
         mode: getTransportMode(item.transport_mode as string | null),
         duration: (transportDetail?.duration as number) || 0,
@@ -156,28 +170,32 @@ export function adaptItinerary(
         route: (transportDetail?.route as string) || '',
       },
       estimatedCost: (item.estimated_cost as number) || 0,
+      notes: (item.notes as string) || undefined,
     };
 
     dayMap.get(dayNumber)!.items.push(itineraryItem);
-
-    if (!dayMap.get(dayNumber)!.date && startTime) {
-      dayMap.get(dayNumber)!.date = startTime.slice(0, 10);
-    }
   }
 
   const sortedDays = Array.from(dayMap.entries())
     .sort(([a], [b]) => a - b)
     .map(([_, day]) => day);
 
-  const day1Date = sortedDays[0]?.date || '';
-  const tripStartDate = day1Date;
+  const baseDate = tripStartDate || sortedDays.find((d) => d.date)?.date || '';
 
   return {
     tripId,
     version: 'sunny',
-    days: sortedDays.map((day, idx) => ({
+    days: sortedDays.map((day) => ({
       ...day,
-      date: day.date || (tripStartDate ? new Date(new Date(tripStartDate).getTime() + (day.dayNumber - 1) * 86400000).toISOString().slice(0, 10) : ''),
+      date:
+        day.date ||
+        (baseDate
+          ? new Date(
+              new Date(baseDate).getTime() + (day.dayNumber - 1) * 86400000
+            )
+              .toISOString()
+              .slice(0, 10)
+          : ''),
     })),
   };
 }

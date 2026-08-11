@@ -3,14 +3,26 @@
 import api from './client';
 import type { TripPlan, Itinerary, TripPreferences } from '@/utils/types';
 
-// 创建新行程
+// 创建新行程（仅建壳，不含 AI 规划）
 export async function createTripPlan(plan: {
+  title?: string;
   destinations: string[];
   startDate: string;
   endDate: string;
   preferences: TripPreferences;
 }): Promise<TripPlan> {
-  return api.post('/api/trips', plan);
+  return api.post('/api/trips', {
+    title: plan.title || plan.destinations.join(' · ') || '新行程',
+    start_date: plan.startDate,
+    end_date: plan.endDate,
+    destinations: plan.destinations.map((name, order) => ({ name, order })),
+    preferences: {
+      style: plan.preferences.style,
+      styles: plan.preferences.styles,
+      budgetLevel: plan.preferences.budgetLevel,
+      specialRequirements: plan.preferences.specialRequirements,
+    },
+  });
 }
 
 // 获取所有行程列表

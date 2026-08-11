@@ -3,12 +3,89 @@
 # 调用 DeepSeek / Gemini / OpenAI 生成个性化行程
 # ============================================================
 import json
+import re
 from typing import Optional, List, Dict, Any
 import httpx
 from config import settings
 from models.trip import TripPlan
 from models.itinerary import ItineraryItem
 from utils.cache import cache
+
+
+def _extract_json(text: str) -> Optional[Any]:
+    """从 LLM 回复中提取 JSON（支持 ```json code fence）"""
+    if not text:
+        return None
+    cleaned = text.strip()
+    fence = re.search(r"```(?:json)?\s*([\s\S]*?)```", cleaned)
+    if fence:
+        cleaned = fence.group(1).strip()
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        # 尝试截取第一个 { ... } 或 [ ... ]
+        for open_c, close_c in (("{", "}"), ("[", "]")):
+            start = cleaned.find(open_c)
+            end = cleaned.rfind(close_c)
+            if start >= 0 and end > start:
+                try:
+                    return json.loads(cleaned[start : end + 1])
+                except json.JSONDecodeError:
+                    continue
+    return None
+
+
+def _build_mock_candidates(
+    city: str,
+    day_infos: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """无 Key / 解析失败时的演示候选点（按天气标签分配室内外）"""
+    indoor_pool = [
+        ("博物馆", "室内展馆参观", "人文历史"),
+        ("美术馆", "艺术展览漫步", "人文历史"),
+        ("购物中心", "室内逛街休息", "美食购物"),
+        ("科技馆", "互动科普体验", "主题乐园"),
+    ]
+    outdoor_pool = [
+        ("古城/老街", "街区漫步打卡", "城市地标"),
+        ("公园", "户外散步休闲", "自然风光"),
+        ("观景台", "俯瞰城市风光", "城市地标"),
+        ("湖畔/滨水", "户外休闲散步", "自然风光"),
+    ]
+    candidates = []
+    for d in day_infos:
+        day_num = d.get("day_number", 1)
+        tag = d.get("tag", "forecast_unknown")
+        pool = indoor_pool if tag == "rainy" else outdoor_pool
+        # 雨天两室内；晴天两户外；未知一天一室内一户外
+        picks = pool[:2] if tag != "forecast_unknown" else [indoor_pool[0], outdoor_pool[0]]
+        slots = ["上午", "下午", "晚上"]
+        for i, (place, activity, category) in enumerate(picks):
+            candidates.append({
+                "name": f"{city}{place}",
+                "indoor_outdoor": "indoor" if tag == "rainy" or (tag == "forecast_unknown" and i == 0) else "outdoor",
+                "suggested_day": day_num,
+                "time_slot": slots[i % 3],
+                "activity": activity,
+                "category": category,
+                "estimated_cost": 50 + i * 20,
+                "duration_hours": 2.5,
+                "reason": f"天气标签={tag}，演示数据",
+            })
+    return {
+        "title": f"{city}智能行程（演示数据）",
+        "candidates": candidates,
+        "total_budget": {
+            "transport": 200,
+            "accommodation": 800,
+            "food": 400,
+            "tickets": 200,
+            "other": 100,
+            "total": 1700,
+        },
+        "tips": ["当前为演示数据：请在 .env 配置 DEEPSEEK_API_KEY 以启用真实 AI 规划"],
+        "is_mock": True,
+    }
 
 
 # 模拟数据：当 API Key 未配置时返回
@@ -176,8 +253,113 @@ _MOCK_FOOD = {
 class AIPlanner:
     """AI 行程规划服务"""
 
+    async def generate_weather_aware_candidates(
+        self,
+        city: str,
+        day_infos: List[Dict[str, Any]],
+        styles: List[str],
+        budget_level: str,
+        special_requirements: str = "",
+    ) -> Dict[str, Any]:
+        """
+        根据天气标签生成候选景点（尚未做地图聚类）。
+        day_infos: [{day_number, date, weather, tag}, ...]
+        """
+        system_prompt = (
+            "你是专业旅行规划师。只输出合法 JSON，不要 markdown 说明文字。"
+            "雨天(tag=rainy)优先室内景点；晴天/多云(tag=outdoor_ok)优先户外；"
+            "未知预报(tag=forecast_unknown)则室内外搭配。"
+        )
+        prompt = f"""
+请为「{city}」生成旅行候选景点列表。
+
+每日天气（务必遵守 tag 约束）：
+{json.dumps(day_infos, ensure_ascii=False)}
+
+旅行偏好风格：{json.dumps(styles, ensure_ascii=False)}
+预算等级：{budget_level}
+特殊需求：{special_requirements or '无'}
+
+硬性要求：
+1. 覆盖每一天（suggested_day 从 1 到 {len(day_infos)}）
+2. 每天 2~4 个景点级活动（MVP 可不含复杂餐饮/住宿）
+3. time_slot 只能是：上午 / 下午 / 晚上
+4. indoor_outdoor 只能是：indoor / outdoor
+5. rainy 日的候选应以 indoor 为主；outdoor_ok 以 outdoor 为主
+
+严格按以下 JSON 结构返回：
+{{
+  "title": "行程标题",
+  "candidates": [
+    {{
+      "name": "景点名称",
+      "indoor_outdoor": "indoor",
+      "suggested_day": 1,
+      "time_slot": "上午",
+      "activity": "活动描述",
+      "category": "人文历史",
+      "estimated_cost": 60,
+      "duration_hours": 3,
+      "reason": "雨天室内"
+    }}
+  ],
+  "total_budget": {{"transport": 0, "accommodation": 0, "food": 0, "tickets": 0, "other": 0}},
+  "tips": ["建议1"]
+}}
+"""
+        result_str = await self._call_llm(prompt, system_prompt)
+        parsed = _extract_json(result_str)
+        if not isinstance(parsed, dict) or not parsed.get("candidates"):
+            return _build_mock_candidates(city, day_infos)
+
+        # 规范化字段
+        normalized = []
+        for c in parsed.get("candidates", []):
+            if not isinstance(c, dict) or not c.get("name"):
+                continue
+            slot = c.get("time_slot") or "上午"
+            if slot not in ("上午", "下午", "晚上"):
+                slot = "上午"
+            io = c.get("indoor_outdoor") or "outdoor"
+            if io not in ("indoor", "outdoor"):
+                io = "outdoor"
+            try:
+                day = int(c.get("suggested_day") or 1)
+            except (TypeError, ValueError):
+                day = 1
+            normalized.append({
+                "name": str(c["name"]),
+                "indoor_outdoor": io,
+                "suggested_day": day,
+                "time_slot": slot,
+                "activity": str(c.get("activity") or c["name"]),
+                "category": str(c.get("category") or "城市地标"),
+                "estimated_cost": float(c.get("estimated_cost") or 0),
+                "duration_hours": float(c.get("duration_hours") or 2),
+                "reason": str(c.get("reason") or ""),
+            })
+
+        if not normalized:
+            return _build_mock_candidates(city, day_infos)
+
+        budget = parsed.get("total_budget") or {}
+        if isinstance(budget, dict) and "total" not in budget:
+            budget["total"] = sum(
+                float(budget.get(k) or 0)
+                for k in ("transport", "accommodation", "food", "tickets", "other")
+            )
+
+        return {
+            "title": parsed.get("title") or f"{city}行程",
+            "candidates": normalized,
+            "total_budget": budget,
+            "tips": parsed.get("tips") or [],
+            "is_mock": bool(parsed.get("is_mock", False)),
+        }
+
     async def _call_llm(self, prompt: str, system_prompt: str = "") -> str:
         """调用 LLM API（优先 DeepSeek，可备选 Gemini/OpenAI）"""
+        # TODO(Yili): 额度紧张时可调整优先级，或把 model 换成更便宜的档位
         # 检查 DeepSeek API Key
         if settings.DEEPSEEK_API_KEY:
             try:
@@ -281,9 +463,8 @@ class AIPlanner:
 请以严格的JSON格式返回，包含 title, description, days（数组，每个元素包含 day, date, items 数组）, total_budget, tips。
 """
         result_str = await self._call_llm(prompt, system_prompt)
-        try:
-            result = json.loads(result_str)
-        except json.JSONDecodeError:
+        result = _extract_json(result_str)
+        if not isinstance(result, dict) or not result.get("days"):
             result = _MOCK_TRIP_PLAN
 
         # 缓存结果（TTL: 600s）
@@ -334,10 +515,10 @@ class AIPlanner:
 请以JSON格式返回优化后的完整行程，保持原有格式。
 """
         result_str = await self._call_llm(prompt, system_prompt)
-        try:
-            return json.loads(result_str)
-        except json.JSONDecodeError:
-            return _MOCK_TRIP_PLAN
+        result = _extract_json(result_str)
+        if isinstance(result, dict):
+            return result
+        return _MOCK_TRIP_PLAN
 
     async def get_luggage_suggestions(
         self,
@@ -360,9 +541,8 @@ class AIPlanner:
 请以JSON格式输出行李打包清单，包含 items（数组，每个元素包含 name, category, quantity, important 布尔值）和 tips 数组。
 """
         result_str = await self._call_llm(prompt, system_prompt)
-        try:
-            result = json.loads(result_str)
-        except json.JSONDecodeError:
+        result = _extract_json(result_str)
+        if not isinstance(result, dict):
             result = _MOCK_LUGGAGE
 
         await cache.set(cache_key, result, ttl=600)
@@ -396,7 +576,7 @@ class AIPlanner:
 请以JSON格式推荐沿途餐厅，包含 restaurants 数组（每个元素含 name, cuisine, price_level, address, rating, recommended_dishes）。
 """
         result_str = await self._call_llm(prompt, system_prompt)
-        try:
-            return json.loads(result_str)
-        except json.JSONDecodeError:
-            return _MOCK_FOOD
+        result = _extract_json(result_str)
+        if isinstance(result, dict):
+            return result
+        return _MOCK_FOOD

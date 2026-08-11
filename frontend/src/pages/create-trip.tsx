@@ -1,12 +1,20 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { TRIP_STYLES, BUDGET_LEVELS } from '@/utils/constants';
-import type { TripStyle, BudgetLevel, AiPlanFormData } from '@/utils/types';
-import { generateTripPlan } from '@/api/ai';
+import type { TripStyle, BudgetLevel } from '@/utils/types';
+import { planTrip } from '@/api/ai';
+import { ApiError } from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 
 const recentSearches = ['北京', '成都', '云南', '日本', '泰国'];
 const hotDestinations = ['三亚', '杭州', '西安', '重庆', '厦门', '青岛', '张家界', '南京'];
+
+const LOADING_HINTS = [
+  '正在获取天气预报…',
+  'AI 正在根据偏好选点…',
+  '正在用地图优化每日空间跨度…',
+  '正在生成按天行程…',
+];
 
 const CreateTripPage: React.FC = () => {
   const router = useRouter();
@@ -20,8 +28,21 @@ const CreateTripPage: React.FC = () => {
   const [specialRequirements, setSpecialRequirements] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [loadingHintIdx, setLoadingHintIdx] = useState(0);
 
   const today = new Date().toISOString().split('T')[0];
+
+  useEffect(() => {
+    if (!submitting) {
+      setLoadingHintIdx(0);
+      return;
+    }
+    const timer = setInterval(() => {
+      setLoadingHintIdx((i) => (i + 1) % LOADING_HINTS.length);
+    }, 2500);
+    return () => clearInterval(timer);
+  }, [submitting]);
 
   const handleStyleToggle = (style: TripStyle) => {
     if (selectedStyles.includes(style)) {
@@ -37,30 +58,48 @@ const CreateTripPage: React.FC = () => {
       return;
     }
 
-    if (!destSearch.trim() || !startDate || !endDate) return;
+    const city = destSearch.trim();
+    if (!city) {
+      setError('请先选择或输入目的地城市');
+      return;
+    }
+    if (!startDate || !endDate) {
+      setError('请选择出发和返程日期');
+      return;
+    }
+    if (endDate < startDate) {
+      setError('返程日期不能早于出发日期');
+      return;
+    }
 
+    setError('');
     setSubmitting(true);
     try {
-      const data: AiPlanFormData = {
-        destinations: destSearch,
-        startDate,
-        endDate,
-        styles: selectedStyles.length > 0 ? selectedStyles : ['休闲度假'] as TripStyle[],
-        budgetLevel,
-        specialRequirements,
-      };
+      const styles =
+        selectedStyles.length > 0 ? selectedStyles : (['休闲度假'] as TripStyle[]);
 
-      await generateTripPlan({
-        destinations: data.destinations.split(/[,，、\s]+/).filter(Boolean),
-        startDate: data.startDate,
-        endDate: data.endDate,
-        styles: data.styles,
-        budgetLevel: data.budgetLevel,
-        specialRequirements: data.specialRequirements,
+      const result = await planTrip({
+        city,
+        destinations: [city],
+        start_date: startDate,
+        end_date: endDate,
+        styles,
+        budget_level: budgetLevel,
+        special_requirements: specialRequirements,
       });
-      router.push('/');
-    } catch {
-      router.push('/');
+
+      if (!result?.trip_id) {
+        setError('规划完成但未返回行程 ID，请稍后在「行程」列表查看');
+        return;
+      }
+
+      router.push(`/trip-plan?id=${result.trip_id}`);
+    } catch (e) {
+      const message =
+        e instanceof ApiError
+          ? e.message
+          : '规划失败，请稍后重试（若未配置 API Key，后端应仍返回演示数据）';
+      setError(message);
     } finally {
       setSubmitting(false);
     }
@@ -224,6 +263,18 @@ const CreateTripPage: React.FC = () => {
             className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all resize-none"
           />
         </div>
+
+        {error && (
+          <div className="px-3 py-2.5 rounded-xl bg-red-50 border border-red-100 text-sm text-red-600">
+            {error}
+          </div>
+        )}
+
+        {submitting && (
+          <p className="text-center text-xs text-brand-600 animate-pulse">
+            {LOADING_HINTS[loadingHintIdx]}
+          </p>
+        )}
 
         <button
           onClick={handleSubmit}

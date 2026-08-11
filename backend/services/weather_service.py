@@ -3,11 +3,17 @@
 # 国内使用和风天气，海外使用 OpenWeatherMap
 # ============================================================
 import json
-from typing import Optional, Dict, Any, List
+from datetime import date, timedelta
+from typing import Optional, Dict, Any, List, Literal
 import httpx
 from config import settings
 from utils.cache import cache
 
+WeatherTag = Literal["rainy", "outdoor_ok", "forecast_unknown"]
+
+_RAINY_KEYWORDS = (
+    "雨", "雪", "雷", "雹", "Rain", "Snow", "Thunder", "Drizzle", "Storm", "Sleet"
+)
 
 _MOCK_FORECAST = {
     "location": "北京",
@@ -26,6 +32,70 @@ _MOCK_FORECAST = {
 class WeatherService:
     """天气查询与备份计划生成服务"""
 
+    def classify_day(self, weather_text: Optional[str]) -> WeatherTag:
+        """将天气文案归类为 rainy / outdoor_ok / forecast_unknown"""
+        if not weather_text or weather_text in ("未知", "Unknown", "forecast_unknown"):
+            return "forecast_unknown"
+        for kw in _RAINY_KEYWORDS:
+            if kw.lower() in weather_text.lower():
+                return "rainy"
+        return "outdoor_ok"
+
+    async def get_forecast_for_range(
+        self,
+        location: str,
+        start: date,
+        end: date,
+    ) -> Dict[str, Any]:
+        """
+        按行程日期区间对齐每日预报。
+        - 和风免费接口多为 /v7/weather/3d，只覆盖近 3 天
+        - TODO(Yili): 行程较长时，可把 _fetch_hefeng 换成 /v7/weather/7d 或 30d（需付费套餐）
+        """
+        if end < start:
+            raise ValueError("end_date must be >= start_date")
+
+        trip_days = (end - start).days + 1
+        raw = await self.get_forecast(location, days=max(trip_days, 3))
+        by_date = {d["date"]: d for d in raw.get("days", []) if d.get("date")}
+
+        aligned: List[Dict[str, Any]] = []
+        for i in range(trip_days):
+            d = start + timedelta(days=i)
+            date_str = d.isoformat()
+            base = by_date.get(date_str)
+            if base:
+                weather_text = base.get("weather", "未知")
+                tag = self.classify_day(weather_text)
+                aligned.append({
+                    **base,
+                    "date": date_str,
+                    "day_number": i + 1,
+                    "tag": tag,
+                    "forecast_available": True,
+                })
+            else:
+                # 无预报覆盖：标记 unknown，交给 LLM 自行合理安排
+                aligned.append({
+                    "date": date_str,
+                    "day_number": i + 1,
+                    "weather": "未知",
+                    "temperature": {"high": None, "low": None},
+                    "humidity": None,
+                    "wind": "",
+                    "uv_index": None,
+                    "suggestion": "暂无可靠预报，请临行前再确认天气",
+                    "tag": "forecast_unknown",
+                    "forecast_available": False,
+                })
+
+        return {
+            "location": location,
+            "days": aligned,
+            "source": raw.get("source", "mock"),
+            "is_mock": bool(raw.get("is_mock", False)),
+        }
+
     async def get_forecast(self, location: str, days: int = 7) -> Dict[str, Any]:
         """获取天气预报，支持国内/海外切换"""
         # 先查缓存
@@ -41,7 +111,21 @@ class WeatherService:
             result = await self._fetch_openweather(location, days)
 
         if not result:
-            result = _MOCK_FORECAST
+            # Key 未配置或请求失败：用 mock，并把日期平移到「今天起」方便联调
+            today = date.today()
+            result = {
+                "location": location,
+                "days": [
+                    {
+                        **day,
+                        "date": (today + timedelta(days=i)).isoformat(),
+                        "tag": self.classify_day(day.get("weather")),
+                    }
+                    for i, day in enumerate(_MOCK_FORECAST["days"][:days])
+                ],
+                "is_mock": True,
+                "source": "mock",
+            }
 
         # 缓存 300 秒
         await cache.set(cache_key, result, ttl=300)
@@ -61,9 +145,10 @@ class WeatherService:
                     return None
                 location_id = city_data["location"][0]["id"]
 
-                # 获取天气预报
+                # TODO(Yili): 免费版用 3d；升级套餐后可改为 /v7/weather/7d 或 30d
+                endpoint = "https://devapi.qweather.com/v7/weather/3d"
                 forecast_resp = await client.get(
-                    "https://devapi.qweather.com/v7/weather/3d",
+                    endpoint,
                     params={"location": location_id, "key": settings.HEFENG_KEY}
                 )
                 forecast_data = forecast_resp.json()
@@ -81,7 +166,8 @@ class WeatherService:
                             "humidity": int(d.get("humidity", 0)),
                             "wind": d.get("windDirDay", ""),
                             "uv_index": int(d.get("uvIndex", 0)),
-                            "suggestion": self._get_weather_suggestion(d["textDay"])
+                            "suggestion": self._get_weather_suggestion(d["textDay"]),
+                            "tag": self.classify_day(d["textDay"]),
                         }
                         for d in days_forecast[:days]
                     ],
@@ -231,8 +317,9 @@ class WeatherService:
 请根据当前天气情况调整行程，生成备用方案（室内活动为主），以JSON格式输出。
 """
         result_str = await planner._call_llm(prompt, system_prompt)
-        try:
-            return json.loads(result_str)
-        except json.JSONDecodeError:
-            return {"warning": "无法生成备用方案", "original_plan": original_plan, "is_mock": True}
+        from services.ai_planner import _extract_json
+        parsed = _extract_json(result_str)
+        if isinstance(parsed, dict):
+            return parsed
+        return {"warning": "无法生成备用方案", "original_plan": original_plan, "is_mock": True}
 

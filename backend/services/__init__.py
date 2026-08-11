@@ -6,12 +6,14 @@ from services.weather_service import WeatherService
 from services.map_service import MapService
 from services.search_service import SearchService
 from services.recommendation import RecommendationEngine
+from services.trip_orchestrator import TripOrchestrator
 
 ai_planner = AIPlanner()
 weather_service = WeatherService()
 map_service = MapService()
 search_service = SearchService()
 recommendation_engine = RecommendationEngine()
+trip_orchestrator = TripOrchestrator()
 
 __all__ = [
     "ai_planner",
@@ -19,4 +21,5 @@ __all__ = [
     "map_service",
     "search_service",
     "recommendation_engine",
+    "trip_orchestrator",
 ]

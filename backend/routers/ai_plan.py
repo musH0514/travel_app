@@ -1,26 +1,41 @@
 # ============================================================
 # AI 智能规划接口
 # ============================================================
+from datetime import date
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from services.ai_planner import AIPlanner
 from services.search_service import SearchService
+from services.trip_orchestrator import TripOrchestrator
 from utils.deps import get_db, get_current_user
 
 router = APIRouter()
 ai_planner = AIPlanner()
 search_service = SearchService()
+orchestrator = TripOrchestrator()
 
 
 # ==================== Pydantic 模型 ====================
 
 class GeneratePlanRequest(BaseModel):
-    """生成行程计划请求"""
+    """生成行程计划请求（旧接口，兼容保留）"""
     preferences: dict
     destinations: List[dict]
     weather: Optional[dict] = None
+
+
+class PlanTripRequest(BaseModel):
+    """创建行程页：一键规划请求"""
+    # 兼容 city 或 destinations[0]
+    city: Optional[str] = None
+    destinations: Optional[List[str]] = None
+    start_date: date
+    end_date: date
+    styles: List[str] = Field(default_factory=lambda: ["休闲度假"])
+    budget_level: str = "舒适型"
+    special_requirements: Optional[str] = ""
 
 
 class OptimizeRequest(BaseModel):
@@ -50,12 +65,53 @@ class SearchRequest(BaseModel):
 
 # ==================== 路由 ====================
 
+@router.post("/plan-trip")
+async def plan_trip(
+    data: PlanTripRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """
+    端到端智能规划：天气 → LLM 选点 → 地图聚类 → 落库。
+    前端「开始规划」应调用本接口。
+    """
+    city = (data.city or "").strip()
+    if not city and data.destinations:
+        city = str(data.destinations[0]).strip()
+    if not city:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="请提供目的地城市（city 或 destinations）",
+        )
+
+    try:
+        result = await orchestrator.plan_and_persist(
+            db=db,
+            user_id=current_user.id,
+            city=city,
+            start_date=data.start_date,
+            end_date=data.end_date,
+            styles=data.styles or ["休闲度假"],
+            budget_level=data.budget_level or "舒适型",
+            special_requirements=data.special_requirements or "",
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"规划失败: {e}",
+        )
+
+    return result
+
+
 @router.post("/generate-plan")
 async def generate_plan(
     data: GeneratePlanRequest,
     current_user=Depends(get_current_user)
 ):
-    """AI 生成完整行程计划"""
+    """AI 生成完整行程计划（旧接口，不落库）"""
     plan = await ai_planner.generate_trip_plan(
         preferences=data.preferences,
         destinations=data.destinations,

@@ -18,6 +18,7 @@ node_modules/
 .idea/
 .vscode/
 *.swp
+.cursor/
 
 # OS
 .DS_Store

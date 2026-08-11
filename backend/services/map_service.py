@@ -2,11 +2,14 @@
 # 地图服务
 # 国内使用高德地图 API，海外使用 Google Maps API
 # ============================================================
-import json
+import math
 from typing import Optional, Dict, Any, List
 import httpx
 from config import settings
 from utils.cache import cache
+
+# TODO(Yili): 同日最大空间跨度（公里），也可通过 .env 的 MAX_DAY_SPAN_KM 覆盖
+DEFAULT_MAX_DAY_SPAN_KM = settings.MAX_DAY_SPAN_KM
 
 
 _MOCK_GEOCODE = {
@@ -294,4 +297,148 @@ class MapService:
             }
 
         await cache.set(cache_key, result, ttl=86400)
+        return result
+
+    @staticmethod
+    def haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+        """两点球面距离（公里）"""
+        r = 6371.0
+        p1, p2 = math.radians(lat1), math.radians(lat2)
+        dphi = math.radians(lat2 - lat1)
+        dlmb = math.radians(lng2 - lng1)
+        a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlmb / 2) ** 2
+        return 2 * r * math.asin(math.sqrt(a))
+
+    async def enrich_with_coordinates(
+        self,
+        city: str,
+        candidates: List[Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        """
+        为候选景点补全经纬度。
+        优先高德 POI 文本搜索（city + name），失败再地理编码，再不行用 mock 偏移坐标。
+        """
+        enriched: List[Dict[str, Any]] = []
+        has_key = bool(settings.DOMESTIC_MODE and settings.AMAP_KEY)
+
+        for idx, c in enumerate(candidates):
+            item = dict(c)
+            name = item.get("name") or "未知地点"
+            query = f"{city}{name}"
+            lat = lng = None
+            address = ""
+            is_mock = False
+
+            if has_key:
+                poi = await self.search_poi(query)
+                pois = poi.get("pois") or []
+                if pois and not poi.get("is_mock"):
+                    loc = pois[0].get("location") or {}
+                    lat = loc.get("lat")
+                    lng = loc.get("lng")
+                    address = pois[0].get("address") or ""
+                if lat is None or lng is None:
+                    geo = await self.geocode(query)
+                    if not geo.get("is_mock"):
+                        lat = geo.get("lat")
+                        lng = geo.get("lng")
+                        address = geo.get("formatted_address") or address
+
+            if lat is None or lng is None:
+                # 无 Key / 查不到：在城市中心附近做确定性小偏移，保证聚类逻辑可跑
+                base = _MOCK_GEOCODE
+                lat = base["lat"] + (idx % 5) * 0.012
+                lng = base["lng"] + (idx % 7) * 0.015
+                address = f"{city}{name}"
+                is_mock = True
+
+            item["location"] = {"lat": float(lat), "lng": float(lng)}
+            item["address"] = address or item.get("address") or f"{city}{name}"
+            item["geo_is_mock"] = is_mock
+            enriched.append(item)
+
+        return enriched
+
+    def cluster_and_reorder_by_day(
+        self,
+        candidates: List[Dict[str, Any]],
+        max_day_span_km: Optional[float] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        同日内按贪心最近邻排序；若相邻两点距离过大，尝试与邻近天交换。
+        TODO(Yili): 调大/调小 max_day_span_km 以适配不同城市尺度
+        """
+        span = max_day_span_km if max_day_span_km is not None else DEFAULT_MAX_DAY_SPAN_KM
+        if not candidates:
+            return []
+
+        # 有真实坐标才做严格距离约束；全 mock 时只做同日排序
+        any_real = any(not c.get("geo_is_mock") for c in candidates)
+
+        by_day: Dict[int, List[Dict[str, Any]]] = {}
+        for c in candidates:
+            day = int(c.get("suggested_day") or 1)
+            by_day.setdefault(day, []).append(dict(c))
+
+        def nearest_neighbor_order(points: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+            if len(points) <= 1:
+                return points
+            remaining = points[:]
+            ordered = [remaining.pop(0)]
+            while remaining:
+                last = ordered[-1]["location"]
+                best_i = 0
+                best_d = float("inf")
+                for i, p in enumerate(remaining):
+                    loc = p["location"]
+                    d = self.haversine_km(last["lat"], last["lng"], loc["lat"], loc["lng"])
+                    if d < best_d:
+                        best_d = d
+                        best_i = i
+                ordered.append(remaining.pop(best_i))
+            return ordered
+
+        # 先按天最近邻排序
+        for day in list(by_day.keys()):
+            by_day[day] = nearest_neighbor_order(by_day[day])
+
+        if any_real:
+            # 若同日相邻点跨度过大，尝试与相邻天交换 outdoor/indoor 标签相近的点
+            days_sorted = sorted(by_day.keys())
+            for day in days_sorted:
+                points = by_day[day]
+                if len(points) < 2:
+                    continue
+                for i in range(len(points) - 1):
+                    a, b = points[i], points[i + 1]
+                    dist = self.haversine_km(
+                        a["location"]["lat"], a["location"]["lng"],
+                        b["location"]["lat"], b["location"]["lng"],
+                    )
+                    if dist <= span:
+                        continue
+                    # 尝试把 b 换到相邻天
+                    swapped = False
+                    for other_day in (day - 1, day + 1):
+                        if other_day not in by_day or not by_day[other_day]:
+                            continue
+                        for j, other in enumerate(by_day[other_day]):
+                            if other.get("indoor_outdoor") != b.get("indoor_outdoor"):
+                                continue
+                            # 交换
+                            by_day[other_day][j] = {**b, "suggested_day": other_day}
+                            points[i + 1] = {**other, "suggested_day": day}
+                            swapped = True
+                            break
+                        if swapped:
+                            break
+                by_day[day] = nearest_neighbor_order(points)
+
+        # 展平并写回 order / suggested_day
+        result: List[Dict[str, Any]] = []
+        for day in sorted(by_day.keys()):
+            for order_idx, item in enumerate(by_day[day]):
+                item["suggested_day"] = day
+                item["order_index"] = order_idx
+                result.append(item)
         return result

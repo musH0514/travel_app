@@ -39,7 +39,9 @@ const TripPlanPage: React.FC = () => {
 
           const items = raw.itinerary as Array<Record<string, unknown>> | undefined;
           if (items) {
-            setItinerary(adaptItinerary(id, items));
+            setItinerary(
+              adaptItinerary(id, items, adapted.startDate)
+            );
           }
         } catch {
           setTrip(null);

@@ -96,9 +96,12 @@ class ItineraryItemResponse(BaseModel):
     id: str
     trip_id: str
     day_number: int
+    date: Optional[str] = None
     start_time: Optional[str] = None
     end_time: Optional[str] = None
     destination_id: Optional[str] = None
+    # 嵌套目的地，供前端时间线展示地点名/坐标
+    destination: Optional[dict] = None
     activity_type: str
     transport_mode: Optional[str] = None
     transport_detail: Optional[dict] = None
@@ -176,13 +179,39 @@ async def get_trip(
             detail="行程不存在"
         )
 
-    # 获取行程项
+    # 获取行程项（附带 destination，供前端 ItineraryView 展示地点名）
     items_result = await db.execute(
         select(ItineraryItem)
         .where(ItineraryItem.trip_id == trip_id)
         .order_by(ItineraryItem.day_number, ItineraryItem.order_index)
     )
     items = items_result.scalars().all()
+
+    dest_ids = [i.destination_id for i in items if i.destination_id]
+    dest_map = {}
+    if dest_ids:
+        dest_result = await db.execute(
+            select(Destination).where(Destination.id.in_(dest_ids))
+        )
+        dest_map = {d.id: d for d in dest_result.scalars().all()}
+
+    def _dest_payload(dest_id: Optional[str]):
+        d = dest_map.get(dest_id) if dest_id else None
+        if not d:
+            return None
+        return {
+            "id": d.id,
+            "name": d.name,
+            "description": d.description or "",
+            "location": d.location or {"lat": 0, "lng": 0},
+            "images": d.images or [],
+            "category": d.category,
+            "rating": d.rating or 0,
+            "budget_per_person": d.budget_per_person,
+            "suggested_duration": d.suggested_duration,
+            "address": d.address,
+            "city": d.city,
+        }
 
     trip_dict = {
         "id": trip.id,
@@ -203,9 +232,16 @@ async def get_trip(
                 "id": item.id,
                 "trip_id": item.trip_id,
                 "day_number": item.day_number,
+                "date": (
+                    trip.start_date.fromordinal(
+                        trip.start_date.toordinal() + item.day_number - 1
+                    ).isoformat()
+                    if trip.start_date else None
+                ),
                 "start_time": item.start_time.isoformat() if item.start_time else None,
                 "end_time": item.end_time.isoformat() if item.end_time else None,
                 "destination_id": item.destination_id,
+                "destination": _dest_payload(item.destination_id),
                 "activity_type": item.activity_type,
                 "transport_mode": item.transport_mode,
                 "transport_detail": item.transport_detail,
@@ -302,23 +338,43 @@ async def get_itinerary(
     result = await db.execute(query)
     items = result.scalars().all()
 
-    return [
-        {
+    dest_ids = [i.destination_id for i in items if i.destination_id]
+    dest_map = {}
+    if dest_ids:
+        dest_result = await db.execute(
+            select(Destination).where(Destination.id.in_(dest_ids))
+        )
+        dest_map = {d.id: d for d in dest_result.scalars().all()}
+
+    enriched = []
+    for item in items:
+        d = dest_map.get(item.destination_id) if item.destination_id else None
+        enriched.append({
             "id": item.id,
             "trip_id": item.trip_id,
             "day_number": item.day_number,
             "start_time": item.start_time.isoformat() if item.start_time else None,
             "end_time": item.end_time.isoformat() if item.end_time else None,
             "destination_id": item.destination_id,
+            "destination": {
+                "id": d.id,
+                "name": d.name,
+                "description": d.description or "",
+                "location": d.location or {"lat": 0, "lng": 0},
+                "images": d.images or [],
+                "category": d.category,
+                "rating": d.rating or 0,
+                "address": d.address,
+                "city": d.city,
+            } if d else None,
             "activity_type": item.activity_type,
             "transport_mode": item.transport_mode,
             "transport_detail": item.transport_detail,
             "notes": item.notes,
             "estimated_cost": item.estimated_cost,
             "order_index": item.order_index
-        }
-        for item in items
-    ]
+        })
+    return enriched
 
 
 @router.post(

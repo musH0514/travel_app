@@ -212,30 +212,31 @@ travel_app/
 ├── .vscode/                          # VS Code 工作区配置
 │   └── settings.json
 ├── backend/                          # FastAPI 后端
-│   ├── config.py                     # 配置
+│   ├── config.py                     # 全局配置（从 .env 加载）
 │   ├── database.py                   # 数据库连接
 │   ├── main.py                       # 应用入口
 │   ├── requirements.txt              # Python 依赖
-│   ├── models/                       # 数据模型
-│   │   ├── destination.py
-│   │   ├── itinerary.py
-│   │   ├── trip.py
-│   │   └── user.py
-│   ├── routers/                      # 路由
-│   │   ├── ai_plan.py
-│   │   ├── auth.py
-│   │   ├── destinations.py
-│   │   ├── trips.py
-│   │   └── weather.py
+│   ├── models/                       # SQLAlchemy 数据模型
+│   │   ├── destination.py            # destinations 表
+│   │   ├── itinerary.py              # itinerary_items 表
+│   │   ├── trip.py                   # trip_plans 表
+│   │   └── user.py                   # users 表
+│   ├── routers/                      # API 路由
+│   │   ├── ai_plan.py                # AI 规划（含 POST /api/ai/plan-trip）
+│   │   ├── auth.py                   # 登录 / 注册
+│   │   ├── destinations.py           # 目的地 CRUD
+│   │   ├── trips.py                  # 行程与行程项
+│   │   └── weather.py                # 天气查询
 │   ├── services/                     # 业务逻辑
-│   │   ├── ai_planner.py
-│   │   ├── map_service.py
-│   │   ├── recommendation.py
-│   │   ├── search_service.py
-│   │   └── weather_service.py
+│   │   ├── ai_planner.py             # LLM 调用与候选景点生成
+│   │   ├── map_service.py            # 高德/Google 地理编码与聚类
+│   │   ├── recommendation.py         # 推荐引擎
+│   │   ├── search_service.py         # 搜索增强
+│   │   ├── trip_orchestrator.py      # 天气→LLM→地图→落库编排
+│   │   └── weather_service.py        # 和风/OpenWeather 预报
 │   └── utils/                        # 工具
-│       ├── cache.py
-│       ├── deps.py
+│       ├── cache.py                  # Redis 缓存
+│       ├── deps.py                   # FastAPI 依赖（鉴权 / DB）
 │       └── status_updater.py         # 行程状态更新
 ├── docs/                             # 文档 / SQL
 │   ├── schema.sql                    # 数据库建表
@@ -251,9 +252,9 @@ travel_app/
 │   │   └── sw.js
 │   ├── src/
 │   │   ├── api/                      # 前端 API 封装
-│   │   │   ├── ai.ts
+│   │   │   ├── ai.ts                 # AI 规划（planTrip / generateTripPlan）
 │   │   │   ├── auth.ts
-│   │   │   ├── client.ts
+│   │   │   ├── client.ts             # fetch 客户端（鉴权 / 超时）
 │   │   │   ├── destinations.ts
 │   │   │   ├── trips.ts
 │   │   │   └── weather.ts
@@ -262,7 +263,7 @@ travel_app/
 │   │   │   ├── AiPlanForm.tsx
 │   │   │   ├── BudgetSummary.tsx
 │   │   │   ├── DestinationCard.tsx
-│   │   │   ├── ItineraryView.tsx
+│   │   │   ├── ItineraryView.tsx      # 按天时间线展示
 │   │   │   ├── Layout.tsx
 │   │   │   ├── LuggageSuggest.tsx
 │   │   │   ├── MapView.tsx
@@ -276,7 +277,7 @@ travel_app/
 │   │   ├── pages/                    # 页面
 │   │   │   ├── _app.tsx
 │   │   │   ├── _document.tsx
-│   │   │   ├── create-trip.tsx       # 创建新行程
+│   │   │   ├── create-trip.tsx       # 创建新行程 / 开始规划
 │   │   │   ├── destinations.tsx      # 目的地浏览
 │   │   │   ├── history-trips.tsx     # 历史行程
 │   │   │   ├── index.tsx             # 行程主页面（底部导航-行程）
@@ -284,12 +285,12 @@ travel_app/
 │   │   │   ├── my-tracks.tsx         # 我的足迹（世界地图）
 │   │   │   ├── profile.tsx           # 个人中心（底部导航-我的）
 │   │   │   ├── settings.tsx          # 设置
-│   │   │   ├── trip-plan.tsx         # 行程详情/AI规划
+│   │   │   ├── trip-plan.tsx         # 行程详情 / 每日行程
 │   │   │   └── weather.tsx           # 天气页面
 │   │   ├── styles/
 │   │   │   └── globals.css
 │   │   └── utils/
-│   │       ├── apiAdapters.ts         # API 数据适配
+│   │       ├── apiAdapters.ts        # 后端数据 → 前端类型适配
 │   │       ├── constants.ts
 │   │       ├── mockData.ts           # 本地 mock 数据
 │   │       ├── scrollRestoration.ts  # 滚动位置恢复
