@@ -11,29 +11,29 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     # 数据库连接
-    # TODO(Yili): 按本机 PostgreSQL 账号修改 DATABASE_URL
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/tripwise"
 
-    # Redis 缓存（未启动 Redis 时缓存会自动降级为无缓存）
+    # TODO(Yili)：Redis 缓存（未启动 Redis 时缓存会自动降级为无缓存）
     REDIS_URL: str = "redis://localhost:6379/0"
 
     # JWT 认证配置
-    SECRET_KEY: str = "your-secret-key-change-in-production"
+    SECRET_KEY: str = "change-me-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24小时
 
     # === API Keys（请在 backend/.env 中填入你的 Key）===
     # TODO(Yili): 高德开放平台申请「Web服务」Key，用于地理编码 / POI
     AMAP_KEY: str = ""
-    # TODO(Yili): DeepSeek 控制台申请 API Key（主力 LLM）
+
     DEEPSEEK_API_KEY: str = ""
-    # TODO(Yili): 可选备用 LLM；DeepSeek 额度不足时会自动尝试
     GEMINI_API_KEY: str = ""
     OPENAI_API_KEY: str = ""
     SERPAPI_KEY: str = ""
+
     # TODO(Yili): 和风天气控制台申请 Key；免费版多为 3 日预报
     HEFENG_KEY: str = ""
     OPENWEATHER_KEY: str = ""
+    
     BING_SEARCH_KEY: str = ""
 
     # 第三方服务切换
