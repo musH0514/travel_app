@@ -108,12 +108,13 @@ const Layout: React.FC<LayoutProps> = ({
                 <button
                   key={item.key}
                   onClick={() => handleTabPress(item)}
-                  className={`flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-all duration-200 ${
+                  className={`relative flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-all duration-200 ${
                     isActive
                       ? 'text-brand-600 scale-100'
                       : 'text-gray-400 scale-100'
                   }`}
                   style={{ minHeight: '44px', minWidth: '44px' }}
+                  aria-current={isActive ? 'page' : undefined}
                 >
                   <span className={`text-xl leading-none transition-transform duration-200 ${
                     isActive ? 'scale-110' : ''

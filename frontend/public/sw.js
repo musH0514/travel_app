@@ -1,7 +1,8 @@
 // TripWise Service Worker
 // 离线缓存策略 - 优先使用缓存，网络请求失败时回退到缓存
 
-const CACHE_NAME = 'tripwise-v1';
+// 升版本以淘汰旧缓存（例如早期五栏底部导航的 JS 产物）
+const CACHE_NAME = 'tripwise-v2';
 
 // 需要预缓存的静态资源
 const PRECACHE_URLS = [
@@ -35,18 +36,25 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// 网络请求拦截 - 缓存优先策略
+// 网络请求拦截
 self.addEventListener('fetch', (event) => {
   // 只拦截 GET 请求
   if (event.request.method !== 'GET') return;
 
-  // API 请求使用网络优先策略
-  if (event.request.url.includes('/api/')) {
+  const url = event.request.url;
+  // API、HTML、JS：网络优先，避免旧导航等壳层资源被长期锁死
+  if (
+    url.includes('/api/') ||
+    event.request.mode === 'navigate' ||
+    url.includes('/_next/') ||
+    url.endsWith('.js') ||
+    url.endsWith('.css')
+  ) {
     event.respondWith(networkFirstStrategy(event.request));
     return;
   }
 
-  // 静态资源使用缓存优先策略
+  // 其余静态资源仍可缓存优先
   event.respondWith(cacheFirstStrategy(event.request));
 });
 

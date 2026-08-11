@@ -32,12 +32,24 @@ export default function Document() {
         {/* 预连接 API 域名 */}
         <link rel="preconnect" href={process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'} />
 
-        {/* Service Worker 注册（仅生产环境） */}
+        {/* Service Worker：本地开发主动卸载，避免旧五栏等缓存干扰；生产再注册 */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              if ('serviceWorker' in navigator && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+              if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
+                  var isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+                  if (isLocal) {
+                    navigator.serviceWorker.getRegistrations().then(function(regs) {
+                      regs.forEach(function(r) { r.unregister(); });
+                    });
+                    if (window.caches && caches.keys) {
+                      caches.keys().then(function(keys) {
+                        keys.forEach(function(k) { caches.delete(k); });
+                      });
+                    }
+                    return;
+                  }
                   navigator.serviceWorker.register('/sw.js').then(
                     function(registration) {
                       console.log('ServiceWorker 注册成功:', registration.scope);

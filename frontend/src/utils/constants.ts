@@ -36,7 +36,7 @@ export const DESTINATION_CATEGORIES = [
   { key: 'shopping', label: '购物' },
 ] as const;
 
-// 底部导航配置
+// 底部导航配置（仅两栏：行程首页 ↔ 我的；勿再加回早期的首页/目的地/天气五栏）
 export const BOTTOM_NAV_ITEMS = [
   { key: 'trips', label: '行程', icon: '📋', path: '/' },
   { key: 'profile', label: '我的', icon: '👤', path: '/profile' },
