@@ -46,12 +46,18 @@
 - 恶劣天气自动触发备选预案（如雨天转室内活动）
 - 支持"多云版 vs 下雨版"行程比较
 
+
+
 ### 7. 行李建议
 
 - 证件资料建议，如护照、身份证等纸质资料
 - 根据天气情况和目的地自然环境提供衣物建议，如雨伞、登山鞋等
 
+
+
 ## 技术栈
+
+
 
 ### 前端
 
@@ -59,11 +65,15 @@
 - Tailwind CSS
 - 高德地图 JS API（国内）/ Google Maps API（海外）
 
+
+
 ### 后端
 
 - Python FastAPI（AI 处理 + 业务逻辑）
 - PostgreSQL（结构化数据）
 - Redis（缓存天气/搜索结果）
+
+
 
 ### AI / 数据
 
@@ -71,6 +81,8 @@
 - Claude API（高精度场景备用）
 - **SerpAPI**（实时搜索小红书/马蜂窝等平台内容）
 - Bing Search API（搜索增强）
+
+
 
 ### 第三方服务
 
@@ -84,29 +96,39 @@
 | 住宿  | 携程     | Booking.com    |
 
 
+
+
 ## 项目结构
+
+
 
 ### 环境变量
 
 - [x] Node.js 18+ 和 npm（前端 Next.js）
 - [x] Python 3.10+ 和 pip（后端 FastAPI）
 - [x] PostgreSQL 数据库
-- [x] Redis（缓存天气/搜索结果）
+- [ ] Redis（缓存天气/搜索结果）
+
+
 
 ### API keys
 
-- [x] AMAP_KEY (高德地图 JS API Key)
-- [x] GOOGLE_MAPS_KEY (Google Maps API Key)
+- [ ] AMAP_KEY (高德地图 JS API Key)
+- [ ] GOOGLE_MAPS_KEY (Google Maps API Key)
 - [x] DEEPSEEK_API_KEY (DeepSeek API Key)
 - [x] GMINI_API_KEY (Google Gemini API Key)
 - [x] OPENAI_API_KEY (OpenAI API Key)
-- [x] SERPAPI_KEY (SerpAPI Key)
-- [x] HEFENG_KEY (和风天气 Key)
-- [x] OPENWEATHER_KEY (OpenWeatherMap Key)
+- [ ] SERPAPI_KEY (SerpAPI Key)
+- [ ] HEFENG_KEY (和风天气 Key)
+- [ ] OPENWEATHER_KEY (OpenWeatherMap Key)
 - [x] DATABASE_URL (PostgreSQL 连接串)
-- [x] REDIS_URL (Redis 连接串)
+- [ ] REDIS_URL (Redis 连接串)
+
+
 
 #### openai, gemini, deepseek的api免费版都有额度限制，基本上只能用最低配的模型。gemini和deepseek的api付费方式都是充值然后按token扣余额，api的费用单独计算，和网页聊天的套餐无关；openai的api套餐和网页聊天的套餐是同一个，额度对应。
+
+
 
 ### PostgreSQL 数据库结构：
 
@@ -143,6 +165,8 @@
 
 | id  | tag_name |
 | --- | -------- |
+
+
 
 
 ### 模块架构
@@ -185,6 +209,8 @@
 
 ```
 travel_app/
+├── .vscode/                          # VS Code 工作区配置
+│   └── settings.json
 ├── backend/                          # FastAPI 后端
 │   ├── config.py                     # 配置
 │   ├── database.py                   # 数据库连接
@@ -209,18 +235,24 @@ travel_app/
 │   │   └── weather_service.py
 │   └── utils/                        # 工具
 │       ├── cache.py
-│       └── deps.py
-├── docs/                             # 文档
-|   └── schema.sql                    # 数据库建表
+│       ├── deps.py
+│       └── status_updater.py         # 行程状态更新
+├── docs/                             # 文档 / SQL
+│   ├── schema.sql                    # 数据库建表
+│   └── seed.sql                      # 初始化数据
 ├── frontend/                         # Next.js 前端
 │   ├── next.config.js
+│   ├── next-env.d.ts
 │   ├── package.json
+│   ├── package-lock.json
+│   ├── postcss.config.js
 │   ├── public/
 │   │   ├── manifest.json
 │   │   └── sw.js
 │   ├── src/
 │   │   ├── api/                      # 前端 API 封装
 │   │   │   ├── ai.ts
+│   │   │   ├── auth.ts
 │   │   │   ├── client.ts
 │   │   │   ├── destinations.ts
 │   │   │   ├── trips.ts
@@ -237,7 +269,10 @@ travel_app/
 │   │   │   ├── RestaurantCard.tsx
 │   │   │   ├── TransportSelector.tsx
 │   │   │   ├── TripCard.tsx
-│   │   │   └── WeatherCard.tsx
+│   │   │   ├── WeatherCard.tsx
+│   │   │   └── YearDivider.tsx
+│   │   ├── context/                  # React Context
+│   │   │   └── AuthContext.tsx       # 登录态
 │   │   ├── pages/                    # 页面
 │   │   │   ├── _app.tsx
 │   │   │   ├── _document.tsx
@@ -245,6 +280,7 @@ travel_app/
 │   │   │   ├── destinations.tsx      # 目的地浏览
 │   │   │   ├── history-trips.tsx     # 历史行程
 │   │   │   ├── index.tsx             # 行程主页面（底部导航-行程）
+│   │   │   ├── login.tsx             # 登录/注册
 │   │   │   ├── my-tracks.tsx         # 我的足迹（世界地图）
 │   │   │   ├── profile.tsx           # 个人中心（底部导航-我的）
 │   │   │   ├── settings.tsx          # 设置
@@ -253,12 +289,18 @@ travel_app/
 │   │   ├── styles/
 │   │   │   └── globals.css
 │   │   └── utils/
+│   │       ├── apiAdapters.ts         # API 数据适配
 │   │       ├── constants.ts
+│   │       ├── mockData.ts           # 本地 mock 数据
+│   │       ├── scrollRestoration.ts  # 滚动位置恢复
 │   │       └── types.ts
 │   ├── tailwind.config.ts
 │   └── tsconfig.json
+├── .gitignore
 └── README.md
 ```
+
+
 
 ### 需要了解的资料
 
@@ -269,7 +311,11 @@ travel_app/
 - 和风天气 API 的接口文档
 - PostgreSQL 建表和基本查询
 
+
+
 ## 分阶段开发路线
+
+
 
 ### Phase 1: MVP 原型（1-2 个月）
 
@@ -279,6 +325,8 @@ travel_app/
 - [ ] 天气接入 + 展示
 - [ ] 基础 AI 路线生成（DeepSeek API）
 
+
+
 ### Phase 2: 智能规划（2-3 个月）
 
 - [ ] 交通方案推荐（Rome2Rio / 高德路径规划）
@@ -286,11 +334,15 @@ travel_app/
 - [ ] 餐饮推荐（顺路算法 + 第三方 API）
 - [ ] 住宿推荐（预算/品质/距离多维排序）
 
+
+
 ### Phase 3: 天气备选 + 差异化（1-2 个月）
 
 - [ ] 7 天天气预报接入
 - [ ] 恶劣天气自动触发备选方案
 - [ ] 行程版本比较（多云 vs 下雨）
+
+
 
 ### Phase 4: 数据增强（1-2 个月）
 
@@ -298,11 +350,15 @@ travel_app/
 - [ ] AI 搜索小红书/马蜂窝/豆瓣内容
 - [ ] 用户反馈闭环（纠错 + 评分）
 
+
+
 ### Phase 5: 打磨发布（1 个月）
 
 - [ ] UI/UX 打磨
 - [ ] 性能优化（缓存策略）
 - [ ] 上线 + 迭代
+
+
 
 ## 快速启动（开发环境）
 
