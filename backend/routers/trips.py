@@ -6,14 +6,16 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import delete, select, and_
 from models.trip import TripPlan
 from models.itinerary import ItineraryItem
 from models.destination import Destination
+from services.trip_orchestrator import TripOrchestrator
 from utils.deps import get_db, get_current_user
 from utils.status_updater import update_trip_statuses
 
 router = APIRouter()
+orchestrator = TripOrchestrator()
 
 
 # ==================== Pydantic 模型 ====================
@@ -41,6 +43,12 @@ class TripUpdate(BaseModel):
     weather_concerns: Optional[bool] = None
     total_budget: Optional[dict] = None
     status: Optional[str] = None
+
+
+class ReplanTripRequest(BaseModel):
+    """修改日期后重新规划请求"""
+    start_date: date
+    end_date: date
 
 
 class TripResponse(BaseModel):
@@ -118,6 +126,130 @@ class TripDetailResponse(TripResponse):
     itinerary: List[ItineraryItemResponse] = []
 
 
+# ==================== 序列化辅助 ====================
+
+async def _get_owned_trip(db: AsyncSession, trip_id: str, user_id: str) -> TripPlan:
+    result = await db.execute(
+        select(TripPlan).where(
+            and_(TripPlan.id == trip_id, TripPlan.user_id == user_id)
+        )
+    )
+    trip = result.scalar_one_or_none()
+    if not trip:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="行程不存在"
+        )
+    return trip
+
+
+async def _load_trip_itinerary(db: AsyncSession, trip_id: str):
+    items_result = await db.execute(
+        select(ItineraryItem)
+        .where(ItineraryItem.trip_id == trip_id)
+        .order_by(ItineraryItem.day_number, ItineraryItem.order_index)
+    )
+    items = items_result.scalars().all()
+
+    dest_ids = [i.destination_id for i in items if i.destination_id]
+    dest_map = {}
+    if dest_ids:
+        dest_result = await db.execute(
+            select(Destination).where(Destination.id.in_(dest_ids))
+        )
+        dest_map = {d.id: d for d in dest_result.scalars().all()}
+    return items, dest_map
+
+
+def _destination_payload(d: Optional[Destination]) -> Optional[dict]:
+    if not d:
+        return None
+    return {
+        "id": d.id,
+        "name": d.name,
+        "description": d.description or "",
+        "location": d.location or {"lat": 0, "lng": 0},
+        "images": d.images or [],
+        "category": d.category,
+        "rating": d.rating or 0,
+        "budget_per_person": d.budget_per_person,
+        "suggested_duration": d.suggested_duration,
+        "address": d.address,
+        "city": d.city,
+    }
+
+
+def _build_trip_detail(trip: TripPlan, items, dest_map) -> dict:
+    return {
+        "id": trip.id,
+        "user_id": trip.user_id,
+        "title": trip.title,
+        "description": getattr(trip, 'description', None),
+        "start_date": trip.start_date,
+        "end_date": trip.end_date,
+        "destinations": trip.destinations,
+        "preferences": trip.preferences,
+        "weather_concerns": False,
+        "total_budget": trip.total_budget,
+        "version": "sunny",
+        "companion_version_id": None,
+        "status": trip.status,
+        "itinerary": [
+            {
+                "id": item.id,
+                "trip_id": item.trip_id,
+                "day_number": item.day_number,
+                "date": (
+                    trip.start_date.fromordinal(
+                        trip.start_date.toordinal() + item.day_number - 1
+                    ).isoformat()
+                    if trip.start_date else None
+                ),
+                "start_time": item.start_time.isoformat() if item.start_time else None,
+                "end_time": item.end_time.isoformat() if item.end_time else None,
+                "destination_id": item.destination_id,
+                "destination": _destination_payload(
+                    dest_map.get(item.destination_id) if item.destination_id else None
+                ),
+                "activity_type": item.activity_type,
+                "transport_mode": item.transport_mode,
+                "transport_detail": item.transport_detail,
+                "notes": item.notes,
+                "estimated_cost": item.estimated_cost,
+                "order_index": item.order_index
+            }
+            for item in items
+        ]
+    }
+
+
+async def _resolve_trip_city(db: AsyncSession, trip: TripPlan) -> str:
+    prefs = trip.preferences or {}
+    city = (prefs.get("city") or "").strip()
+    if city:
+        return city
+
+    item_result = await db.execute(
+        select(ItineraryItem)
+        .where(ItineraryItem.trip_id == trip.id)
+        .order_by(ItineraryItem.day_number, ItineraryItem.order_index)
+        .limit(1)
+    )
+    item = item_result.scalar_one_or_none()
+    if item and item.destination_id:
+        dest_result = await db.execute(
+            select(Destination).where(Destination.id == item.destination_id)
+        )
+        dest = dest_result.scalar_one_or_none()
+        if dest and (dest.city or "").strip():
+            return dest.city.strip()
+
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="无法确定行程目的地城市，请先重命名或重新创建行程",
+    )
+
+
 # ==================== 路由 ====================
 
 @router.get("/", response_model=List[TripResponse])
@@ -167,92 +299,54 @@ async def get_trip(
     current_user=Depends(get_current_user)
 ):
     """获取行程详情（含完整行程单）"""
-    result = await db.execute(
-        select(TripPlan).where(
-            and_(TripPlan.id == trip_id, TripPlan.user_id == current_user.id)
+    trip = await _get_owned_trip(db, trip_id, current_user.id)
+    items, dest_map = await _load_trip_itinerary(db, trip_id)
+    return _build_trip_detail(trip, items, dest_map)
+
+
+@router.put("/{trip_id}/replan", response_model=TripDetailResponse)
+async def replan_trip(
+    trip_id: str,
+    data: ReplanTripRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """修改日期后，按原目的地与偏好重新规划行程。"""
+    trip = await _get_owned_trip(db, trip_id, current_user.id)
+    city = await _resolve_trip_city(db, trip)
+
+    prefs = trip.preferences or {}
+    styles_raw = prefs.get("styles")
+    if isinstance(styles_raw, list) and styles_raw:
+        styles = [str(s) for s in styles_raw]
+    elif prefs.get("style"):
+        styles = [str(prefs["style"])]
+    else:
+        styles = ["休闲度假"]
+    budget_level = prefs.get("budgetLevel") or "舒适型"
+    special_requirements = prefs.get("specialRequirements") or ""
+
+    try:
+        await orchestrator.replan_and_persist(
+            db=db,
+            trip=trip,
+            city=city,
+            start_date=data.start_date,
+            end_date=data.end_date,
+            styles=styles,
+            budget_level=budget_level,
+            special_requirements=special_requirements,
         )
-    )
-    trip = result.scalar_one_or_none()
-    if not trip:
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="行程不存在"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"重新规划失败: {e}",
         )
 
-    # 获取行程项（附带 destination，供前端 ItineraryView 展示地点名）
-    items_result = await db.execute(
-        select(ItineraryItem)
-        .where(ItineraryItem.trip_id == trip_id)
-        .order_by(ItineraryItem.day_number, ItineraryItem.order_index)
-    )
-    items = items_result.scalars().all()
-
-    dest_ids = [i.destination_id for i in items if i.destination_id]
-    dest_map = {}
-    if dest_ids:
-        dest_result = await db.execute(
-            select(Destination).where(Destination.id.in_(dest_ids))
-        )
-        dest_map = {d.id: d for d in dest_result.scalars().all()}
-
-    def _dest_payload(dest_id: Optional[str]):
-        d = dest_map.get(dest_id) if dest_id else None
-        if not d:
-            return None
-        return {
-            "id": d.id,
-            "name": d.name,
-            "description": d.description or "",
-            "location": d.location or {"lat": 0, "lng": 0},
-            "images": d.images or [],
-            "category": d.category,
-            "rating": d.rating or 0,
-            "budget_per_person": d.budget_per_person,
-            "suggested_duration": d.suggested_duration,
-            "address": d.address,
-            "city": d.city,
-        }
-
-    trip_dict = {
-        "id": trip.id,
-        "user_id": trip.user_id,
-        "title": trip.title,
-        "description": getattr(trip, 'description', None),
-        "start_date": trip.start_date,
-        "end_date": trip.end_date,
-        "destinations": trip.destinations,
-        "preferences": trip.preferences,
-        "weather_concerns": False,
-        "total_budget": trip.total_budget,
-        "version": "sunny",
-        "companion_version_id": None,
-        "status": trip.status,
-        "itinerary": [
-            {
-                "id": item.id,
-                "trip_id": item.trip_id,
-                "day_number": item.day_number,
-                "date": (
-                    trip.start_date.fromordinal(
-                        trip.start_date.toordinal() + item.day_number - 1
-                    ).isoformat()
-                    if trip.start_date else None
-                ),
-                "start_time": item.start_time.isoformat() if item.start_time else None,
-                "end_time": item.end_time.isoformat() if item.end_time else None,
-                "destination_id": item.destination_id,
-                "destination": _dest_payload(item.destination_id),
-                "activity_type": item.activity_type,
-                "transport_mode": item.transport_mode,
-                "transport_detail": item.transport_detail,
-                "notes": item.notes,
-                "estimated_cost": item.estimated_cost,
-                "order_index": item.order_index
-            }
-            for item in items
-        ]
-    }
-    return trip_dict
+    items, dest_map = await _load_trip_itinerary(db, trip_id)
+    return _build_trip_detail(trip, items, dest_map)
 
 
 @router.put("/{trip_id}", response_model=TripResponse)
@@ -304,6 +398,7 @@ async def delete_trip(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="行程不存在"
         )
+    await db.execute(delete(ItineraryItem).where(ItineraryItem.trip_id == trip_id))
     await db.delete(trip)
     await db.commit()
 
@@ -561,5 +656,3 @@ async def delete_itinerary_item(
         )
     await db.delete(item)
     await db.commit()
-
-

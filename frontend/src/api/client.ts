@@ -89,12 +89,21 @@ async function request<T>(path: string, config: RequestConfig = {}): Promise<T> 
       throw new ApiError('登录已过期，请重新登录', 401);
     }
 
-    // 解析响应
-    const data = await response.json();
+    // 解析响应：兼容 204/205 空响应，避免 JSON 解析失败
+    let data: unknown;
+    const text = await response.text();
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = text;
+      }
+    }
 
     if (!response.ok) {
+      const errObj = data as { message?: string; detail?: string } | undefined;
       throw new ApiError(
-        data.message || data.detail || `请求失败 (${response.status})`,
+        errObj?.message || errObj?.detail || `请求失败 (${response.status})`,
         response.status,
         data
       );

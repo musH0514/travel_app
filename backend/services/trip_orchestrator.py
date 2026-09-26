@@ -5,7 +5,7 @@
 from datetime import date, time, timedelta
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.destination import Destination
@@ -57,11 +57,100 @@ class TripOrchestrator:
         city = city.strip()
         styles = styles or ["休闲度假"]
 
-        # 1) 天气
+        weather_payload, llm_result, ordered = await self._build_plan(
+            city, start_date, end_date, styles, budget_level, special_requirements
+        )
+        title, budget, preferences = self._normalize_plan_result(
+            city, styles, budget_level, special_requirements, llm_result
+        )
+
+        trip = TripPlan(
+            user_id=user_id,
+            title=title,
+            start_date=start_date,
+            end_date=end_date,
+            destinations=[],
+            preferences=preferences,
+            total_budget=budget,
+            status="confirmed",
+        )
+        db.add(trip)
+        await db.flush()  # 拿到 trip.id
+
+        dest_summaries, itinerary_response = await self._persist_itinerary(
+            db, trip, city, ordered, start_date
+        )
+
+        trip.destinations = dest_summaries
+        await db.commit()
+        await db.refresh(trip)
+
+        return self._plan_response(
+            trip, weather_payload, llm_result, ordered, itinerary_response, dest_summaries
+        )
+
+    async def replan_and_persist(
+        self,
+        db: AsyncSession,
+        trip: TripPlan,
+        city: str,
+        start_date: date,
+        end_date: date,
+        styles: List[str],
+        budget_level: str,
+        special_requirements: str = "",
+    ) -> Dict[str, Any]:
+        """修改日期后原地重新规划：先清空旧行程明细，再写入新行程。"""
+        if end_date < start_date:
+            raise ValueError("结束日期不能早于开始日期")
+        if not city.strip():
+            raise ValueError("目的地城市不能为空")
+
+        city = city.strip()
+        styles = styles or ["休闲度假"]
+
+        weather_payload, llm_result, ordered = await self._build_plan(
+            city, start_date, end_date, styles, budget_level, special_requirements
+        )
+        title, budget, preferences = self._normalize_plan_result(
+            city, styles, budget_level, special_requirements, llm_result
+        )
+
+        # 先删除旧行程明细（不删除全局景点）
+        await db.execute(delete(ItineraryItem).where(ItineraryItem.trip_id == trip.id))
+
+        trip.title = title
+        trip.start_date = start_date
+        trip.end_date = end_date
+        trip.total_budget = budget
+        trip.preferences = preferences
+        trip.status = "confirmed"
+
+        dest_summaries, itinerary_response = await self._persist_itinerary(
+            db, trip, city, ordered, start_date
+        )
+        trip.destinations = dest_summaries
+
+        await db.commit()
+        await db.refresh(trip)
+
+        return self._plan_response(
+            trip, weather_payload, llm_result, ordered, itinerary_response, dest_summaries
+        )
+
+    async def _build_plan(
+        self,
+        city: str,
+        start_date: date,
+        end_date: date,
+        styles: List[str],
+        budget_level: str,
+        special_requirements: str,
+    ):
+        """天气 → LLM 候选 → 地图聚类，返回 (weather_payload, llm_result, ordered)。"""
         weather_payload = await self.weather.get_forecast_for_range(city, start_date, end_date)
         day_infos = weather_payload.get("days", [])
 
-        # 2) LLM 候选景点（已按天气室内外约束）
         llm_result = await self.planner.generate_weather_aware_candidates(
             city=city,
             day_infos=day_infos,
@@ -71,14 +160,21 @@ class TripOrchestrator:
         )
         candidates = llm_result.get("candidates") or []
 
-        # 3) 地图：补坐标 + 同日空间约束重排
         enriched = await self.maps.enrich_with_coordinates(city, candidates)
         ordered = self.maps.cluster_and_reorder_by_day(
             enriched,
             max_day_span_km=settings.MAX_DAY_SPAN_KM,
         )
+        return weather_payload, llm_result, ordered
 
-        # 4) 落库
+    @staticmethod
+    def _normalize_plan_result(
+        city: str,
+        styles: List[str],
+        budget_level: str,
+        special_requirements: str,
+        llm_result: Dict[str, Any],
+    ):
         title = llm_result.get("title") or f"{city}行程"
         budget = llm_result.get("total_budget") or {
             "transport": 0,
@@ -99,21 +195,18 @@ class TripOrchestrator:
             "styles": styles,
             "budgetLevel": budget_level,
             "specialRequirements": special_requirements or "",
+            "city": city,
         }
+        return title, budget, preferences
 
-        trip = TripPlan(
-            user_id=user_id,
-            title=title,
-            start_date=start_date,
-            end_date=end_date,
-            destinations=[],
-            preferences=preferences,
-            total_budget=budget,
-            status="confirmed",
-        )
-        db.add(trip)
-        await db.flush()  # 拿到 trip.id
-
+    async def _persist_itinerary(
+        self,
+        db: AsyncSession,
+        trip: TripPlan,
+        city: str,
+        ordered: List[Dict[str, Any]],
+        start_date: date,
+    ):
         dest_summaries: List[Dict[str, Any]] = []
         dest_cache: Dict[str, Destination] = {}
         itinerary_response: List[Dict[str, Any]] = []
@@ -168,10 +261,17 @@ class TripOrchestrator:
 
             itinerary_response.append(self._serialize_itinerary_item(itin, dest, start_date))
 
-        trip.destinations = dest_summaries
-        await db.commit()
-        await db.refresh(trip)
+        return dest_summaries, itinerary_response
 
+    @staticmethod
+    def _plan_response(
+        trip: TripPlan,
+        weather_payload: Dict[str, Any],
+        llm_result: Dict[str, Any],
+        ordered: List[Dict[str, Any]],
+        itinerary_response: List[Dict[str, Any]],
+        dest_summaries: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
         return {
             "trip_id": trip.id,
             "title": trip.title,

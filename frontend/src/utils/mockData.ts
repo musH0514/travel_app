@@ -2,7 +2,7 @@ import type { TripPlan, Itinerary, WeatherForecast, LuggageSuggestion, Restauran
 
 export const mockTrips: TripPlan[] = [
   {
-    id: '1', userId: 'u1',
+    id: '1', userId: 'u1', title: '北京西安文化之旅',
     destinations: [{ id: 'd1', name: '北京', description: '', location: { lat: 39.9, lng: 116.4 }, images: [], category: '', rating: 4.5, price: 0, tags: [], duration: 0 }, { id: 'd2', name: '西安', description: '', location: { lat: 34.3, lng: 108.9 }, images: [], category: '', rating: 4.7, price: 0, tags: [], duration: 0 }],
     startDate: '2026-07-15', endDate: '2026-07-20',
     budget: { total: 8000, transport: 2000, accommodation: 3000, food: 1500, tickets: 800, other: 700 },
@@ -12,7 +12,7 @@ export const mockTrips: TripPlan[] = [
     createdAt: '2026-06-10', updatedAt: '2026-06-10',
   },
   {
-    id: '2', userId: 'u1',
+    id: '2', userId: 'u1', title: '成都美食之旅',
     destinations: [{ id: 'd3', name: '成都', description: '', location: { lat: 30.5, lng: 104.0 }, images: [], category: '', rating: 4.6, price: 0, tags: [], duration: 0 }],
     startDate: '2026-08-01', endDate: '2026-08-04',
     budget: { total: 5000, transport: 1000, accommodation: 2000, food: 1200, tickets: 400, other: 400 },
@@ -22,7 +22,7 @@ export const mockTrips: TripPlan[] = [
     createdAt: '2026-06-08', updatedAt: '2026-06-08',
   },
   {
-    id: '3', userId: 'u1',
+    id: '3', userId: 'u1', title: '大理休闲之旅',
     destinations: [{ id: 'd4', name: '大理', description: '', location: { lat: 25.6, lng: 100.2 }, images: [], category: '', rating: 4.5, price: 0, tags: [], duration: 0 }],
     startDate: '2026-09-10', endDate: '2026-09-14',
     budget: { total: 4000, transport: 800, accommodation: 1500, food: 1000, tickets: 300, other: 400 },
@@ -32,7 +32,7 @@ export const mockTrips: TripPlan[] = [
     createdAt: '2026-06-05', updatedAt: '2026-06-05',
   },
   {
-    id: 'h1', userId: 'u1',
+    id: 'h1', userId: 'u1', title: '昆明大理之旅',
     destinations: [{ id: 'd5', name: '昆明', description: '', location: { lat: 25.0, lng: 102.7 }, images: [], category: '', rating: 4.5, price: 0, tags: [], duration: 0 }, { id: 'd6', name: '大理', description: '', location: { lat: 25.6, lng: 100.2 }, images: [], category: '', rating: 4.6, price: 0, tags: [], duration: 0 }],
     startDate: '2026-04-01', endDate: '2026-04-05',
     budget: { total: 6000, transport: 1500, accommodation: 2000, food: 1500, tickets: 500, other: 500 },
@@ -42,7 +42,7 @@ export const mockTrips: TripPlan[] = [
     createdAt: '2026-03-20', updatedAt: '2026-04-05',
   },
   {
-    id: 'h2', userId: 'u1',
+    id: 'h2', userId: 'u1', title: '厦门之旅',
     destinations: [{ id: 'd7', name: '厦门', description: '', location: { lat: 24.5, lng: 118.1 }, images: [], category: '', rating: 4.4, price: 0, tags: [], duration: 0 }],
     startDate: '2026-02-10', endDate: '2026-02-13',
     budget: { total: 3500, transport: 800, accommodation: 1200, food: 800, tickets: 300, other: 400 },
@@ -52,7 +52,7 @@ export const mockTrips: TripPlan[] = [
     createdAt: '2026-01-25', updatedAt: '2026-02-13',
   },
   {
-    id: 'h3', userId: 'u1',
+    id: 'h3', userId: 'u1', title: '杭州之旅',
     destinations: [{ id: 'd8', name: '杭州', description: '', location: { lat: 30.3, lng: 120.2 }, images: [], category: '', rating: 4.7, price: 0, tags: [], duration: 0 }],
     startDate: '2025-12-20', endDate: '2025-12-24',
     budget: { total: 4500, transport: 1000, accommodation: 1800, food: 1000, tickets: 400, other: 300 },

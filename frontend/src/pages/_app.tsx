@@ -3,6 +3,7 @@ import type { AppProps } from 'next/app';
 import Head from 'next/head';
 import Layout from '@/components/Layout';
 import { AuthProvider } from '@/context/AuthContext';
+import { HeaderActionProvider } from '@/context/HeaderActionContext';
 import '@/styles/globals.css';
 
 function TripWiseApp({ Component, pageProps, router }: AppProps) {
@@ -46,7 +47,9 @@ function TripWiseApp({ Component, pageProps, router }: AppProps) {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <title>TripWise - 智能行程规划</title>
       </Head>
-      <AuthProvider>{content}</AuthProvider>
+      <AuthProvider>
+        <HeaderActionProvider>{content}</HeaderActionProvider>
+      </AuthProvider>
     </>
   );
 }

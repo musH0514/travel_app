@@ -45,6 +45,7 @@ const TripCard: React.FC<TripCardProps> = ({
   };
 
   const destNames = trip.destinations.map((d) => d.name).join(' · ');
+  const cardTitle = trip.title || destNames;
 
   return (
     <div
@@ -53,7 +54,7 @@ const TripCard: React.FC<TripCardProps> = ({
     >
       <div className="h-32 bg-gradient-to-br from-teal-400 via-cyan-500 to-blue-600 relative">
         <div className="absolute bottom-3 left-3 px-3 py-1.5 bg-black/40 backdrop-blur-sm rounded-full text-sm font-medium text-white">
-          {destNames}
+          {cardTitle}
         </div>
       </div>
 

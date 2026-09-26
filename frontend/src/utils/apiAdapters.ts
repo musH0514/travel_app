@@ -44,6 +44,10 @@ export function adaptTrip(backendTrip: Record<string, unknown>): TripPlan {
   const totalBudget = backendTrip.total_budget as Record<string, number> | null;
   const preferences = backendTrip.preferences as Record<string, string> | null;
   const status = backendTrip.status as string;
+  const title =
+    (backendTrip.title as string) ||
+    destinations.map((d) => d.name as string).join(' · ') ||
+    '未命名行程';
 
   const statusMap: Record<string, 'ongoing' | 'planned' | 'completed'> = {
     'draft': 'planned',
@@ -56,6 +60,7 @@ export function adaptTrip(backendTrip: Record<string, unknown>): TripPlan {
   return {
     id: backendTrip.id as string,
     userId: backendTrip.user_id as string,
+    title,
     destinations: destinations.map((d: Record<string, unknown>) => ({
       id: d.id as string,
       name: d.name as string,

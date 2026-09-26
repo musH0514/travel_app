@@ -51,6 +51,7 @@ export interface Destination {
 export interface TripPlan {
   id: string;
   userId: string;
+  title: string;
   destinations: Destination[];
   startDate: string; // ISO 日期字符串
   endDate: string;

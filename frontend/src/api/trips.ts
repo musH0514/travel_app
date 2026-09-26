@@ -43,6 +43,19 @@ export async function updateTripPlan(
   return api.put(`/api/trips/${id}`, plan);
 }
 
+// 修改日期后重新规划行程（原地替换日期与行程明细）
+export async function replanTrip(
+  id: string,
+  startDate: string,
+  endDate: string
+): Promise<unknown> {
+  return api.put(
+    `/api/trips/${id}/replan`,
+    { start_date: startDate, end_date: endDate },
+    { timeout: 120000 }
+  );
+}
+
 // 删除行程
 export async function deleteTripPlan(id: string): Promise<void> {
   return api.delete(`/api/trips/${id}`);

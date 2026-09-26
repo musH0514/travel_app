@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { BOTTOM_NAV_ITEMS } from '@/utils/constants';
+import { useHeaderAction } from '@/context/HeaderActionContext';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -18,6 +19,7 @@ const Layout: React.FC<LayoutProps> = ({
   rightAction,
 }) => {
   const router = useRouter();
+  const { rightAction: contextRightAction } = useHeaderAction();
   const [activeTab, setActiveTab] = useState<string>('trips');
 
   useEffect(() => {
@@ -42,6 +44,7 @@ const Layout: React.FC<LayoutProps> = ({
   };
 
   const isHome = router.pathname === '/';
+  const effectiveRightAction = rightAction ?? contextRightAction;
 
   return (
     <div className="min-h-screen bg-gray-50 flex justify-center">
@@ -71,7 +74,7 @@ const Layout: React.FC<LayoutProps> = ({
               <h1 className="text-base font-semibold text-gray-800 truncate">{title}</h1>
             )}
 
-            <div className="flex items-center gap-1 min-w-[40px] justify-end">
+            <div className="relative flex items-center gap-1 min-w-[40px] justify-end">
               {isHome ? (
                 <button
                   onClick={() => router.push('/profile')}
@@ -79,8 +82,8 @@ const Layout: React.FC<LayoutProps> = ({
                 >
                   <span className="text-brand-600 font-medium text-xs">U</span>
                 </button>
-              ) : rightAction ? (
-                rightAction
+              ) : effectiveRightAction ? (
+                effectiveRightAction
               ) : (
                 <div className="w-10" />
               )}
